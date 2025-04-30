@@ -32,4 +32,4 @@ RUN useradd -m appuser && chown -R appuser:appuser /backend
 USER appuser
 
 # Run Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "project.wsgi:application"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "backend.wsgi:application"]
