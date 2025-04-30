@@ -31,7 +31,8 @@ INSTALLED_APPS = [
     'corsheaders',
     'channels',
     'django_filters',
-    'backend'
+    'backend',
+    'api'
 ]
 
 MIDDLEWARE = [
@@ -111,7 +112,8 @@ CHANNEL_LAYERS = {
 }
 
 # CORS settings - important for Flutter
-CORS_ALLOWED_ORIGINS = ["http://localhost", "http://127.0.0.1"]
+# Update this line in settings.py
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]', 'backend', '*']
 CORS_ALLOW_CREDENTIALS = True
 
 # REST Framework settings
