@@ -1,14 +1,18 @@
-# views.py in your app directory
-from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
-from django.contrib.auth.models import User
-from .models import Message
-from .serializers import MessageSerializer, UserSerializer
+# Add this to your views.py file
+from django.shortcuts import render
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
 
-class MessageViewSet(viewsets.ModelViewSet):
-    queryset = Message.objects.all().order_by('timestamp')
-    serializer_class = MessageSerializer
-    permission_classes = [IsAuthenticated]
+@api_view(['GET', 'POST'])
+def chat_view(request):
+    if request.method == 'GET':
+        messages = Message.objects.all().order_by('timestamp')
+        serializer = MessageSerializer(messages, many=True)
+        return Response(serializer.data)
     
-    def perform_create(self, serializer):
-        serializer.save(sender=self.request.user)
+    elif request.method == 'POST':
+        serializer = MessageSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(sender=request.user)
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
