@@ -54,7 +54,8 @@ services:
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --no-input &&
-             gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 backend.wsgi:application"
+             gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 --reload --reload-engine=poll backend.wsgi:application"
+
 
   # Nginx for serving static files and reverse proxy
   nginx:

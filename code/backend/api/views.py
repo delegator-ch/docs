@@ -25,7 +25,6 @@ from .serializers import (
 
 User = get_user_model()
 
-
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
@@ -37,6 +36,16 @@ class UserViewSet(viewsets.ModelViewSet):
         if self.action == 'retrieve' or self.action == 'list':
             return UserDetailSerializer
         return UserSerializer
+
+        # Special registration view (allows anyone)
+    @api_view(['POST'])
+    @permission_classes([AllowAny])
+    def register_user(request):
+        serializer = UserSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class OrganisationViewSet(viewsets.ModelViewSet):
