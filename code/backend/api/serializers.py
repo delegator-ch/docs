@@ -13,10 +13,41 @@ User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=True)
+    
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'created']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'password', 'created']
         read_only_fields = ['created']
+        extra_kwargs = {'password': {'write_only': True}}
+    
+    def create(self, validated_data):
+        # Extract the password
+        password = validated_data.pop('password')
+        
+        # Create the user instance
+        user = User.objects.create_user(**validated_data)
+        
+        # Set the password properly (this handles the hashing)
+        user.set_password(password)
+        user.save()
+        
+        return user
+    
+    def update(self, instance, validated_data):
+        # Handle password updates separately
+        password = validated_data.pop('password', None)
+        
+        # Update other fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        
+        # If password was provided, update it
+        if password:
+            instance.set_password(password)
+        
+        instance.save()
+        return instance
 
 
 class RoleSerializer(serializers.ModelSerializer):

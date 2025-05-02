@@ -1,6 +1,7 @@
 from rest_framework import viewsets, permissions, filters
 from django_filters.rest_framework import DjangoFilterBackend
 from django.contrib.auth import get_user_model
+
 from .models import (
     Organisation, Role, UserOrganisation, Calendar, Event, Project, Chat,
     ChatUser, Message, Song, Timetable, Setlist, Contact, ContactEvent,
@@ -27,6 +28,11 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 
+# Add to api/views.py
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
+
+
 User = get_user_model()
 
 
@@ -50,7 +56,7 @@ class UserViewSet(viewsets.ModelViewSet):
         if self.action == 'retrieve' or self.action == 'list':
             return UserDetailSerializer
         return UserSerializer
-        
+
 class OrganisationViewSet(viewsets.ModelViewSet):
     queryset = Organisation.objects.all()
     serializer_class = OrganisationSerializer
@@ -353,3 +359,19 @@ class DecisionViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['meeting']
     search_fields = ['content']
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        
+        # Add custom claims to the token payload
+        token['username'] = user.username
+        token['email'] = user.email
+        token['first_name'] = user.first_name
+        token['last_name'] = user.last_name
+        
+        return token
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
