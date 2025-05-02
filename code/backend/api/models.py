@@ -1,11 +1,28 @@
 # models.py
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.contrib.auth.models import User
+from django.conf import settings
 from django.utils import timezone
 
+# Define User model first, before any other models
 class User(AbstractUser):
     created = models.DateTimeField(auto_now_add=True)
+    
+    # Add related_name arguments to avoid clashes with auth.User
+    groups = models.ManyToManyField(
+        'auth.Group',
+        related_name='api_user_groups',
+        blank=True,
+        help_text='The groups this user belongs to.',
+        verbose_name='groups',
+    )
+    user_permissions = models.ManyToManyField(
+        'auth.Permission',
+        related_name='api_user_permissions',
+        blank=True,
+        help_text='Specific permissions for this user.',
+        verbose_name='user permissions',
+    )
     
     def __str__(self):
         return self.username
@@ -27,7 +44,7 @@ class Role(models.Model):
 
 
 class UserOrganisation(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     organisation = models.ForeignKey(Organisation, on_delete=models.CASCADE)
     role = models.ForeignKey(Role, on_delete=models.CASCADE)
     
@@ -72,7 +89,7 @@ class Chat(models.Model):
 
 
 class ChatUser(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     chat = models.ForeignKey(Chat, on_delete=models.CASCADE)
     view = models.BooleanField(default=True)
     write = models.BooleanField(default=True)
@@ -87,7 +104,7 @@ class ChatUser(models.Model):
 
 
 class Message(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     chat = models.ForeignKey(Chat, on_delete=models.CASCADE)
     content = models.TextField()
     sent = models.DateTimeField(auto_now_add=True)
@@ -152,14 +169,14 @@ class ContactEvent(models.Model):
 
 class Email(models.Model):
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
-    sender = models.ForeignKey(Contact, on_delete=models.CASCADE)
+    sender = models.ForeignKey(Contact, related_name='sent_emails', on_delete=models.CASCADE)
     
     def __str__(self):
         return f"Email from {self.sender} regarding {self.event}"
 
 
 class History(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     activity = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
     
@@ -175,7 +192,7 @@ class Status(models.Model):
 
 
 class Task(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     title = models.CharField(max_length=255)
     content = models.TextField(blank=True)
@@ -192,7 +209,7 @@ class Task(models.Model):
 
 
 class Recording(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, primary_key=True)
+    project = models.OneToOneField(Project, on_delete=models.CASCADE, primary_key=True)
     song = models.ForeignKey(Song, on_delete=models.CASCADE)
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
@@ -220,7 +237,7 @@ class Mood(models.Model):
 class Audio(models.Model):
     song = models.ForeignKey(Song, on_delete=models.CASCADE)
     audio_url = models.URLField()
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     created = models.DateTimeField(auto_now_add=True)
     description = models.TextField(blank=True)
@@ -231,7 +248,7 @@ class Audio(models.Model):
 
 class AudioComment(models.Model):
     audio = models.ForeignKey(Audio, on_delete=models.CASCADE)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     content = models.TextField()
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
@@ -248,7 +265,7 @@ class Storyboard(models.Model):
     order = models.IntegerField(default=0)
     externe = models.IntegerField(default=0)
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     
     def __str__(self):
         return f"Storyboard {self.id} for {self.project}"
@@ -273,7 +290,7 @@ class Question(models.Model):
 
 class Evaluation(models.Model):
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     rating = models.IntegerField()
     comment = models.TextField(blank=True)
     created = models.DateTimeField(auto_now_add=True)
@@ -287,7 +304,7 @@ class Evaluation(models.Model):
 
 class Vote(models.Model):
     vote = models.BooleanField()
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     created = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
@@ -303,7 +320,7 @@ class Account(models.Model):
 
 
 class Transaction(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     date = models.DateTimeField(default=timezone.now)
     soll_account = models.ForeignKey(Account, related_name='debits', on_delete=models.CASCADE)
@@ -356,7 +373,7 @@ class StackMovement(models.Model):
     stack = models.ForeignKey(Stack, on_delete=models.CASCADE)
     amount = models.IntegerField()
     date = models.DateTimeField(default=timezone.now)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     
     def __str__(self):
         return f"Movement of {self.amount} for {self.stack} on {self.date.strftime('%Y-%m-%d')}"
@@ -385,7 +402,7 @@ class TalkingPoint(models.Model):
     content = models.TextField(blank=True)
     order = models.IntegerField(default=0)
     meeting = models.ForeignKey(Meeting, on_delete=models.CASCADE)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     
     class Meta:
         ordering = ['order']

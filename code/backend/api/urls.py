@@ -5,7 +5,7 @@ from .views import (
     CalendarViewSet, EventViewSet, ProjectViewSet, ChatViewSet, ChatUserViewSet,
     MessageViewSet, SongViewSet, TimetableViewSet, SetlistViewSet, ContactViewSet,
     ContactEventViewSet, EmailViewSet, HistoryViewSet, StatusViewSet, TaskViewSet,
-    RecordingViewSet, MoodboardViewSet, MoodSerializer, AudioViewSet, AudioCommentViewSet,
+    RecordingViewSet, MoodboardViewSet, MoodViewSet, AudioViewSet, AudioCommentViewSet,
     StoryboardViewSet, RetroViewSet, QuestionViewSet, EvaluationViewSet, VoteViewSet,
     AccountViewSet, TransactionViewSet, TypeViewSet, PieceViewSet, PieceTypeViewSet,
     StackViewSet, StackMovementViewSet, VisionViewSet, MeetingViewSet, TalkingPointViewSet,
@@ -34,7 +34,7 @@ router.register(r'statuses', StatusViewSet)
 router.register(r'tasks', TaskViewSet)
 router.register(r'recordings', RecordingViewSet)
 router.register(r'moodboards', MoodboardViewSet)
-router.register(r'moods', MoodSerializer)
+router.register(r'moods', MoodViewSet)
 router.register(r'audios', AudioViewSet)
 router.register(r'audio-comments', AudioCommentViewSet)
 router.register(r'storyboards', StoryboardViewSet)
@@ -54,6 +54,5 @@ router.register(r'meetings', MeetingViewSet)
 router.register(r'talking-points', TalkingPointViewSet)
 router.register(r'decisions', DecisionViewSet)
 
-urlpatterns = [
-    path('api/', include(router.urls)),
-]
+# This line is crucial - make sure it exists at the bottom of the file
+urlpatterns = router.urls

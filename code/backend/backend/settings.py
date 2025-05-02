@@ -132,3 +132,6 @@ REST_FRAMEWORK = {
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Tell Django to use our custom User model
+AUTH_USER_MODEL = 'api.User'
