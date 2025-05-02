@@ -22,8 +22,22 @@ from .serializers import (
     PieceTypeSerializer, StackSerializer, StackMovementSerializer, VisionSerializer,
     MeetingSerializer, MeetingDetailSerializer, TalkingPointSerializer, DecisionSerializer
 )
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import AllowAny
 
 User = get_user_model()
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def register_user(request):
+    serializer = UserSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
@@ -36,18 +50,7 @@ class UserViewSet(viewsets.ModelViewSet):
         if self.action == 'retrieve' or self.action == 'list':
             return UserDetailSerializer
         return UserSerializer
-
-        # Special registration view (allows anyone)
-    @api_view(['POST'])
-    @permission_classes([AllowAny])
-    def register_user(request):
-        serializer = UserSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
+        
 class OrganisationViewSet(viewsets.ModelViewSet):
     queryset = Organisation.objects.all()
     serializer_class = OrganisationSerializer

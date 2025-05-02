@@ -1,5 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from .views import register_user
 from .views import (
     UserViewSet, OrganisationViewSet, RoleViewSet, UserOrganisationViewSet,
     CalendarViewSet, EventViewSet, ProjectViewSet, ChatViewSet, ChatUserViewSet,
@@ -56,3 +57,7 @@ router.register(r'decisions', DecisionViewSet)
 
 # This line is crucial - make sure it exists at the bottom of the file
 urlpatterns = router.urls
+
+urlpatterns += [
+    path('register/', register_user),  # ✅ korrekt für api_view
+]
