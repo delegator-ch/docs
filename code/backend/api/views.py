@@ -18,10 +18,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
 
-# Add to api/views.py
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
-
+from .permissions import CanAccessCalendar
+from .utils import get_user_accessible_calendars
 
 User = get_user_model()
 
@@ -34,6 +34,7 @@ def register_user(request):
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
@@ -94,50 +95,25 @@ class CalendarViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """
-        This view returns only calendars the user has access to, through:
-        1. Being part of a project associated with the calendar
-        2. Being part of the organization that owns the calendar with specific roles
-        3. The calendar is specifically associated with the user (user-specific calendars)
+        This view returns only calendars the user has access to.
         """
-        user = self.request.user
-        
-        # Get organizations the user belongs to with specific roles
-        specific_roles = [1, 2, 3]  # IDs of roles that should grant calendar access
-        user_orgs = UserOrganisation.objects.filter(
-            user=user, 
-            role_id__in=specific_roles
-        ).values_list('organisation_id', flat=True)
-        
-        # Get calendars from those organizations
-        user_calendars = Calendar.objects.filter(organisation_id__in=user_orgs)
-        
-        # Get projects the user is part of (via tasks)
-        user_projects = Project.objects.filter(task__user=user).distinct()
-        
-        # Get events from those projects
-        project_events = Event.objects.filter(project__in=user_projects).values_list('calendar_id', flat=True).distinct()
-        
-        # Get calendars from those events
-        project_calendars = Calendar.objects.filter(id__in=project_events)
-        
-        # Get user-specific calendars 
-        # You'll need to add a user field to your Calendar model for this to work
-        user_specific_calendars = Calendar.objects.filter(user=user)
-        
-        # Combine all querysets
-        return (user_calendars | project_calendars | user_specific_calendars).distinct()
+        return get_user_accessible_calendars(self.request.user)
 
+#acces only via calender access
 class EventViewSet(viewsets.ModelViewSet):
     queryset = Event.objects.all()
     serializer_class = EventSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['calendar', 'is_gig']
-    
+    permission_classes = [IsAuthenticated, CanAccessCalendar]
+
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return EventDetailSerializer
         return EventSerializer
 
+    def get_queryset(self):
+        return Event.objects.filter(calendar__in=get_user_accessible_calendars(self.request.user))
 
 class ProjectViewSet(viewsets.ModelViewSet):
     queryset = Project.objects.all()
@@ -149,7 +125,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
         if self.action == 'retrieve':
             return ProjectDetailSerializer
         return ProjectSerializer
-
 
 class ChatViewSet(viewsets.ModelViewSet):
     queryset = Chat.objects.all()
