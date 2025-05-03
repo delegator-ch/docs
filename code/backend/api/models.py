@@ -73,6 +73,13 @@ class Event(models.Model):
 
 
 class Project(models.Model):
+
+    users = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        through='UserProject',
+        related_name='projects'
+    )    
+
     event = models.ForeignKey(Event, on_delete=models.SET_NULL, null=True, blank=True)
     deadline = models.DateTimeField(null=True, blank=True)
     priority = models.IntegerField(default=0)
