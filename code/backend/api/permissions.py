@@ -4,6 +4,16 @@ from rest_framework.exceptions import PermissionDenied
 from .models import Calendar
 from .utils import get_user_accessible_calendars  # or wherever you defined it
 
+from rest_framework.permissions import BasePermission
+from .utils import user_has_chat_access
+
+class CanAccessChat(BasePermission):
+    """
+    Permission to check if user can access a chat.
+    """
+    def has_object_permission(self, request, view, obj):
+        return user_has_chat_access(request.user, obj)
+
 class CanAccessCalendar(BasePermission):
     """
     Ensures the user can access (or write to) the calendar in the request.

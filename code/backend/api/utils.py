@@ -1,4 +1,41 @@
 
+
+from .models import UserOrganisation, Project, Chat, UserProject
+
+def user_has_chat_access(user, chat):
+    """
+    Determine if a user has access to a chat based on:
+    1. Organization membership
+    2. Project membership
+    """
+    # Direct access via ChatUser
+    if chat.chatuser_set.filter(user=user, view=True).exists():
+        return True
+    
+    # Access via Project membership
+    if UserProject.objects.filter(user=user, project=chat.project).exists():
+        return True
+    
+    # Access via Organization (if the project is part of an organization)
+    # This assumes you have a way to link projects to organizations
+    project_orgs = get_project_organizations(chat.project)
+    if UserOrganisation.objects.filter(user=user, organisation__in=project_orgs).exists():
+        return True
+    
+    return False
+
+def get_project_organizations(project):
+    """
+    Get organizations related to a project.
+    You may need to adjust this based on your data model.
+    """
+    # This is a placeholder - we need to determine how projects and orgs are related
+    # If projects have events that have calendars that belong to organizations:
+    if project.event and project.event.calendar:
+        return [project.event.calendar.organisation]
+    
+    return []
+    
 def get_user_accessible_calendars(user):
     """
     Utility function to get all calendars a user has access to.

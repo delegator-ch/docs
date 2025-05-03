@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import (
     Organisation, Role, UserOrganisation, Calendar, Event, Project, Chat,
-    ChatUser, Message, Song, Timetable, Setlist, History, Status, Task, Recording, UserProject
+    ChatUser, Message, Song, Timetable, Setlist, History, Status, Task, Recording, UserProject, ChatAccessView
 )
 
 User = get_user_model()
@@ -228,8 +228,6 @@ class UserDetailSerializer(serializers.ModelSerializer):
         user_orgs = UserOrganisation.objects.filter(user=obj)
         return UserOrganisationSerializer(user_orgs, many=True).data
 
-# Add this to your serializers.py file
-
 class UserProjectSerializer(serializers.ModelSerializer):
     user_details = UserSerializer(source='user', read_only=True)
     project_details = ProjectSerializer(source='project', read_only=True)
@@ -239,3 +237,9 @@ class UserProjectSerializer(serializers.ModelSerializer):
         model = UserProject
         fields = ['id', 'user', 'project', 'role', 'created', 'user_details', 'project_details', 'role_details']
         read_only_fields = ['created']
+
+
+class ChatAccessSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ChatAccessView
+        fields = ['chat_id', 'user_id', 'username', 'access_type']

@@ -5,14 +5,14 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 
 from .models import (
     Organisation, Role, UserOrganisation, Calendar, Event, Project, Chat,
-    ChatUser, Message, Song, Timetable, Setlist, History, Status, Task, Recording, UserProject
+    ChatUser, Message, Song, Timetable, Setlist, History, Status, Task, Recording, UserProject, ChatAccessView
 )
 from .serializers import (
     UserSerializer, UserDetailSerializer, OrganisationSerializer, RoleSerializer,
     UserOrganisationSerializer, CalendarSerializer, EventSerializer, EventDetailSerializer,
     ProjectSerializer, ProjectDetailSerializer, ChatSerializer, ChatUserSerializer,
     MessageSerializer, SongSerializer, TimetableSerializer, SetlistSerializer,
-    HistorySerializer, StatusSerializer, TaskSerializer, RecordingSerializer, UserProjectSerializer
+    HistorySerializer, StatusSerializer, TaskSerializer, RecordingSerializer, UserProjectSerializer, ChatAccessSerializer
 )
 
 from rest_framework.decorators import api_view, permission_classes
@@ -23,6 +23,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .permissions import CanAccessCalendar
 from .utils import get_user_accessible_calendars
+from .permissions import CanAccessChat
 
 User = get_user_model()
 
@@ -128,11 +129,40 @@ class ProjectViewSet(viewsets.ModelViewSet):
             return ProjectDetailSerializer
         return ProjectSerializer
 
+
+
+
 class ChatViewSet(viewsets.ModelViewSet):
     queryset = Chat.objects.all()
     serializer_class = ChatSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['project']
+    permission_classes = [IsAuthenticated, CanAccessChat]
+    
+    def get_queryset(self):
+        """
+        Filter chats to only those the user has access to.
+        """
+        user = self.request.user
+        
+        # Admin/staff can see all chats
+        if user.is_staff:
+            return Chat.objects.all()
+            
+        # Get projects the user is a member of
+        user_projects = Project.objects.filter(userproject__user=user)
+        
+        # Get user's organizations
+        user_orgs = UserOrganisation.objects.filter(user=user).values_list('organisation_id', flat=True)
+        
+        # Get chats where user is explicitly added
+        user_chats = Chat.objects.filter(chatuser__user=user, chatuser__view=True)
+        
+        # Get chats from user's projects
+        project_chats = Chat.objects.filter(project__in=user_projects)
+        
+        # Combine the querysets (we need to determine how to get org-based chats)
+        return (user_chats | project_chats).distinct()
 
 
 class ChatUserViewSet(viewsets.ModelViewSet):
@@ -223,6 +253,22 @@ class UserProjectViewSet(viewsets.ModelViewSet):
             models.Q(user=user) | 
             models.Q(project__in=Project.objects.filter(userproject__user=user))
         ).distinct()
+
+class ChatAccessViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = ChatAccessView.objects.all()
+    serializer_class = ChatAccessSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['chat_id', 'user_id', 'access_type']
+    
+    def get_queryset(self):
+        # Only show access for chats the user can access
+        user = self.request.user
+        if user.is_staff:
+            return ChatAccessView.objects.all()
+        
+        # Get chat IDs this user can access
+        accessible_chat_ids = ChatAccessView.objects.filter(user_id=user.id).values_list('chat_id', flat=True)
+        return ChatAccessView.objects.filter(chat_id__in=accessible_chat_ids)
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod

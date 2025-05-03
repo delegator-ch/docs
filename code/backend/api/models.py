@@ -54,7 +54,9 @@ class UserOrganisation(models.Model):
     def __str__(self):
         return f"{self.user} - {self.organisation} ({self.role})"
 
-
+# Only access (CRUD) on projectes your are added to
+# or access (CRUD) on organisation your are added 
+# or access via user_id
 class Calendar(models.Model):
     organisation = models.ForeignKey(Organisation, on_delete=models.CASCADE)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True) # not required. If null it a project calender
@@ -62,6 +64,7 @@ class Calendar(models.Model):
     def __str__(self):
         return f"Calendar for {self.organisation}"
 
+# Only access (CRUD) on calender you have access to
 class Event(models.Model):
     calendar = models.ForeignKey(Calendar, on_delete=models.CASCADE)
     start = models.TimeField()
@@ -71,7 +74,7 @@ class Event(models.Model):
     def __str__(self):
         return f"Event on {self.start.strftime('%H:%M')} - {self.end.strftime('%H:%M')}"
 
-
+# Only access (CRUD) on projectes your are added to
 class Project(models.Model):
 
     users = models.ManyToManyField(
@@ -88,14 +91,15 @@ class Project(models.Model):
     def __str__(self):
         return f"Project {self.id}"
 
-
+# Chat only via table ChatUser or via project
 class Chat(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     
     def __str__(self):
         return f"Chat for {self.project}"
 
-
+# Only can see all your chats by user_id or all chats your added to
+# Only can add and remove user on chats with speific roles
 class ChatUser(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     chat = models.ForeignKey(Chat, on_delete=models.CASCADE)
@@ -110,7 +114,8 @@ class ChatUser(models.Model):
     def __str__(self):
         return f"{self.user} in {self.chat}"
 
-
+# Only send messages to chat your added to
+# Only read messages in chat your added to
 class Message(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     chat = models.ForeignKey(Chat, on_delete=models.CASCADE)
@@ -121,7 +126,7 @@ class Message(models.Model):
     def __str__(self):
         return f"Message by {self.user} at {self.sent.strftime('%Y-%m-%d %H:%M')}"
 
-
+# Only read and write on orginisations your added to
 class Song(models.Model):
     nr = models.IntegerField(default=0)
     name = models.CharField(max_length=255)
@@ -130,7 +135,7 @@ class Song(models.Model):
     def __str__(self):
         return self.name
 
-
+# Only access (CRUD) on projectes your are added to
 class Timetable(models.Model):
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     time = models.TimeField()
@@ -139,7 +144,7 @@ class Timetable(models.Model):
     def __str__(self):
         return f"{self.name} at {self.time.strftime('%H:%M')}"
 
-
+# Only access (CRUD) on projectes your are added to
 class Setlist(models.Model):
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     time = models.TimeField()
@@ -149,7 +154,7 @@ class Setlist(models.Model):
     def __str__(self):
         return f"{self.name} - {self.song} at {self.time.strftime('%H:%M')}"
 
-
+# Only read and write on orginisations your added to
 class History(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     activity = models.TextField()
@@ -167,7 +172,7 @@ class Status(models.Model):
     def __str__(self):
         return self.name
 
-
+# Only access (CRUD) on projectes your are added to
 class Task(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
@@ -184,7 +189,7 @@ class Task(models.Model):
     def __str__(self):
         return self.title
 
-
+# Only access (CRUD) on projectes your are added to
 class Recording(models.Model):
     project = models.OneToOneField(Project, on_delete=models.CASCADE, primary_key=True)
     song = models.ForeignKey(Song, on_delete=models.CASCADE)
@@ -207,3 +212,17 @@ class UserProject(models.Model):
     
     def __str__(self):
         return f"{self.user.username} in {self.project}"
+
+class ChatAccessView(models.Model):
+    """
+    A database view that shows all users with access to each chat.
+    This is a read-only model.
+    """
+    chat_id = models.IntegerField()
+    user_id = models.IntegerField()
+    username = models.CharField(max_length=150)
+    access_type = models.CharField(max_length=20)
+    
+    class Meta:
+        managed = False
+        db_table = 'chat_access_view'
