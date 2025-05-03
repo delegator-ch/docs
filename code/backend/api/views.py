@@ -28,7 +28,7 @@ from .serializers import (
     UserProjectSerializer, ChatAccessSerializer
 )
 
-from .permissions import CanAccessCalendar, CanAccessChat, HasSongPermission
+from .permissions import CanAccessCalendar, CanAccessChat, HasSongPermission, IsMessageOwnerOrReadOnly
 from .utils import get_user_accessible_calendars, get_user_accessible_chats, user_has_chat_access
 
 User = get_user_model()
@@ -135,7 +135,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             return ProjectDetailSerializer
         return ProjectSerializer
 
-
+# Is only a view
 class ChatViewSet(viewsets.ModelViewSet):
     queryset = Chat.objects.all()
     serializer_class = ChatSerializer
@@ -168,61 +168,31 @@ class ChatViewSet(viewsets.ModelViewSet):
         # Combine the querysets (we need to determine how to get org-based chats)
         return (user_chats | project_chats).distinct()
 
-
+# Only for muting
 class ChatUserViewSet(viewsets.ModelViewSet):
     queryset = ChatUser.objects.all()
     serializer_class = ChatUserSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['user', 'chat', 'view', 'write']
 
-
+# Only access (CRUD) on projectes your are added to
+# or access (CRUD) on organisation your are added to with the roles
 class MessageViewSet(viewsets.ModelViewSet):
     queryset = Message.objects.all()
     serializer_class = MessageSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['user', 'chat']
     search_fields = ['content']
-    permission_classes = [IsAuthenticated, CanAccessChat]
+    permission_classes = [IsAuthenticated, IsMessageOwnerOrReadOnly]
 
     def get_queryset(self):
-        if self.request.user.is_staff:
-            return Message.objects.all()
         return Message.objects.filter(chat__in=get_user_accessible_chats(self.request.user))
 
     def perform_create(self, serializer):
-        chat = serializer.validated_data.get('chat')
-        user = self.request.user
-
-        chat_user = ChatUser.objects.filter(user=user, chat=chat).first()
-        if chat_user and not chat_user.write:
-            raise PermissionDenied("You don't have write permission for this chat.")
-
-        if not chat_user and not user_has_chat_access(user, chat):
-            raise PermissionDenied("You don't have access to this chat.")
-
-        serializer.save(user=user)
+        serializer.save(user=self.request.user)
 
     def perform_update(self, serializer):
         serializer.save(edited=timezone.now())
-
-    @action(detail=False, methods=['get'])
-    def unread(self, request):
-        user = request.user
-        accessible_chats = get_user_accessible_chats(user)
-
-        muted_chat_ids = ChatUser.objects.filter(
-            user=user, chat__in=accessible_chats, muted=True
-        ).values_list('chat_id', flat=True)
-
-        non_muted_chats = accessible_chats.exclude(id__in=muted_chat_ids)
-
-        unread_messages = Message.objects.filter(
-            chat__in=non_muted_chats
-            # + add unread logic
-        )
-
-        serializer = self.get_serializer(unread_messages, many=True)
-        return Response(serializer.data)
 
 class SongViewSet(viewsets.ModelViewSet):
     queryset = Song.objects.all()

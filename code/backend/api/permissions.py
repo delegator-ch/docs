@@ -74,3 +74,16 @@ class HasSongPermission(BasePermission):
         
         # For unsafe methods (POST, PUT, DELETE), require specific roles
         return has_role
+
+class IsMessageOwnerOrReadOnly(BasePermission):
+    """
+    Custom permission to only allow owners of a message to edit or delete it.
+    """
+
+    def has_object_permission(self, request, view, obj):
+        # Read permissions are allowed to any authenticated user.
+        if request.method in SAFE_METHODS:
+            return True
+
+        # Write/delete permissions are only allowed to the message owner.
+        return obj.user == request.user

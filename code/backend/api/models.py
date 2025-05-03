@@ -116,8 +116,8 @@ class ChatUser(models.Model):
         muted_status = " (muted)" if self.muted else ""
         return f"{self.user} in {self.chat}{muted_status}"
 
-# Only send messages to chat your added to
-# Only read messages in chat your added to
+# Only access (CRUD) on projectes your are added to
+# or access (CRUD) on organisation your are added to with the roles
 class Message(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     chat = models.ForeignKey(Chat, on_delete=models.CASCADE)

@@ -64,8 +64,11 @@ def get_user_accessible_calendars(user):
     return (org_calendars | project_calendars).distinct()
 
 def get_user_accessible_chats(user):
+    if user.is_staff: # TODO: Check this out
+        return Chat.objects.all()
     return Chat.objects.filter(
         Q(chatuser__user=user, chatuser__view=True) |
         Q(project__userproject__user=user) |
         Q(project__event__calendar__organisation__userorganisation__user=user)
     ).distinct()
+
