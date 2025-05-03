@@ -119,57 +119,24 @@ class IsProjectMember(BasePermission):
             project=event.project
         ).exists()
 
-class HasSetlistAccess(BasePermission):
-    def has_object_permission(self, request, view, obj):
-        user = request.user
-        
-        # Staff users have full access
-        if user.is_staff:
-            return True
-        
-        # Check project-based access
-        return user_has_project_event_access(user, obj.event)
-
-class HasTaskAccess(BasePermission):
+class IsPartOfOrganisation(BasePermission):
     """
-    Custom permission to only allow access to tasks for users who are members of the related project.
+    Allows access only to users who are part of at least one organisation.
     """
-    def has_object_permission(self, request, view, obj):
-        user = request.user
-        
-        # Staff users have full access
-        if user.is_staff:
-            return True
-        
-        # Check if user is assigned to this task
-        if obj.user == user:
-            return True
-        
-        # Check if user is a member of the project this task belongs to
-        return UserProject.objects.filter(
-            user=user,
-            project=obj.project
-        ).exists()
-    
     def has_permission(self, request, view):
-        # For create operations, check if user is member of the project
-        if request.method == 'POST':
-            project_id = request.data.get('project')
-            if not project_id:
-                return False
-                
-            try:
-                project = Project.objects.get(id=project_id)
-                
-                # Check if user is a member of this project
-                is_project_member = UserProject.objects.filter(
-                    user=request.user,
-                    project=project
-                ).exists()
-                
-                return is_project_member or request.user.is_staff
-            except Project.DoesNotExist:
-                return False
-                
-        # For list and other non-object operations
-        return True
+        user = request.user
+        return user.is_staff or UserOrganisation.objects.filter(user=user).exists()
+
+class IsPartOfOrganisationAndStaff(BasePermission):
+    """
+    Allows access only to users who are part of an organisation
+    and have a staff-like role (e.g. Admin, Manager).
+    """
+    STAFF_ROLE_IDS = [1, 2]  # Adjust according to your Role model
+
+    def has_permission(self, request, view):
+        user = request.user
+        return user.is_staff or UserOrganisation.objects.filter(
+            user=user,
+            role_id__in=self.STAFF_ROLE_IDS
+        ).exists()

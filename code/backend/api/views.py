@@ -28,7 +28,7 @@ from .serializers import (
     UserProjectSerializer, ChatAccessSerializer
 )
 
-from .permissions import CanAccessCalendar, CanAccessChat, HasSongPermission, IsMessageOwnerOrReadOnly, IsProjectMember, HasSetlistAccess, HasTaskAccess
+from .permissions import CanAccessCalendar, CanAccessChat, HasSongPermission, IsMessageOwnerOrReadOnly, IsProjectMember, HasSetlistAccess, HasRecordingAccess, HasTaskAccess, IsOwnerOrStaff
 from .utils import get_user_accessible_calendars, get_user_accessible_chats, user_has_chat_access, get_user_project_events
 
 User = get_user_model()
@@ -240,7 +240,7 @@ class SetlistViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['event', 'song']
     search_fields = ['name']
-    permission_classes = [IsAuthenticated, HasSetlistAccess]
+    permission_classes = [IsAuthenticated, IsProjectMember]
 
     def get_queryset(self):
         return get_user_project_queryset(self.request.user, self.queryset, project_field='event__project')
@@ -252,7 +252,7 @@ class HistoryViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['user']
     search_fields = ['activity']
-    permission_classes = [IsAuthenticated, IsOwnerOrStaff]  # We'll reuse this permission
+    permission_classes = [IsAuthenticated, IsPartOfOrganisation]
     
     def get_queryset(self):
         """
@@ -284,7 +284,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['user', 'project', 'status', 'deadline', 'event']
     search_fields = ['title', 'content']
-    permission_classes = [IsAuthenticated, HasTaskAccess]
+    permission_classes = [IsAuthenticated, IsProjectMember]
 
     def get_queryset(self):
         user = self.request.user
@@ -302,7 +302,7 @@ class RecordingViewSet(viewsets.ModelViewSet):
     serializer_class = RecordingSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['project', 'song']
-    permission_classes = [IsAuthenticated, HasRecordingAccess]
+    permission_classes = [IsAuthenticated, IsProjectMember]
 
     def get_queryset(self):
         return get_user_project_queryset(self.request.user, self.queryset, project_field='project')
