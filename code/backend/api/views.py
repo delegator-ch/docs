@@ -1,32 +1,22 @@
 from rest_framework import viewsets, permissions, filters
 from django_filters.rest_framework import DjangoFilterBackend
 from django.contrib.auth import get_user_model
+from rest_framework.permissions import IsAuthenticated, AllowAny
 
 from .models import (
     Organisation, Role, UserOrganisation, Calendar, Event, Project, Chat,
-    ChatUser, Message, Song, Timetable, Setlist, Contact, ContactEvent,
-    Email, History, Status, Task, Recording, Moodboard, Mood, Audio,
-    AudioComment, Storyboard, Retro, Question, Evaluation, Vote, Account,
-    Transaction, Type, Piece, PieceType, Stack, StackMovement, Vision,
-    Meeting, TalkingPoint, Decision
+    ChatUser, Message, Song, Timetable, Setlist, History, Status, Task, Recording
 )
 from .serializers import (
     UserSerializer, UserDetailSerializer, OrganisationSerializer, RoleSerializer,
     UserOrganisationSerializer, CalendarSerializer, EventSerializer, EventDetailSerializer,
     ProjectSerializer, ProjectDetailSerializer, ChatSerializer, ChatUserSerializer,
     MessageSerializer, SongSerializer, TimetableSerializer, SetlistSerializer,
-    ContactSerializer, ContactEventSerializer, EmailSerializer, HistorySerializer,
-    StatusSerializer, TaskSerializer, RecordingSerializer, MoodboardSerializer,
-    MoodSerializer, AudioSerializer, AudioCommentSerializer, StoryboardSerializer,
-    RetroSerializer, QuestionSerializer, EvaluationSerializer, VoteSerializer,
-    AccountSerializer, TransactionSerializer, TypeSerializer, PieceSerializer,
-    PieceTypeSerializer, StackSerializer, StackMovementSerializer, VisionSerializer,
-    MeetingSerializer, MeetingDetailSerializer, TalkingPointSerializer, DecisionSerializer
+    HistorySerializer, StatusSerializer, TaskSerializer, RecordingSerializer
 )
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
 
 # Add to api/views.py
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -64,10 +54,20 @@ class OrganisationViewSet(viewsets.ModelViewSet):
     filterset_fields = ['name']
     search_fields = ['name']
 
+    def get_queryset(self):
+        """
+        This view returns only organizations the user has been invited to.
+        """
+        user = self.request.user
+        # Get organizations where this user has a UserOrganisation relationship
+        user_orgs = UserOrganisation.objects.filter(user=user).values_list('organisation_id', flat=True)
+        return Organisation.objects.filter(id__in=user_orgs)
 
-class RoleViewSet(viewsets.ModelViewSet):
+
+class RoleViewSet(viewsets.ReadOnlyModelViewSet):  # Changed to ReadOnlyModelViewSet
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
+    permission_classes = [IsAuthenticated]  # Added permission
 
 
 class UserOrganisationViewSet(viewsets.ModelViewSet):
@@ -154,27 +154,6 @@ class SetlistViewSet(viewsets.ModelViewSet):
     search_fields = ['name']
 
 
-class ContactViewSet(viewsets.ModelViewSet):
-    queryset = Contact.objects.all()
-    serializer_class = ContactSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    search_fields = ['first_name', 'name', 'email', 'phone']
-
-
-class ContactEventViewSet(viewsets.ModelViewSet):
-    queryset = ContactEvent.objects.all()
-    serializer_class = ContactEventSerializer
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['event', 'contact']
-
-
-class EmailViewSet(viewsets.ModelViewSet):
-    queryset = Email.objects.all()
-    serializer_class = EmailSerializer
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['event', 'sender']
-
-
 class HistoryViewSet(viewsets.ModelViewSet):
     queryset = History.objects.all()
     serializer_class = HistorySerializer
@@ -182,12 +161,13 @@ class HistoryViewSet(viewsets.ModelViewSet):
     filterset_fields = ['user']
     search_fields = ['activity']
 
-
-class StatusViewSet(viewsets.ModelViewSet):
+#Roles are defined by me not the user
+class StatusViewSet(viewsets.ReadOnlyModelViewSet): 
     queryset = Status.objects.all()
     serializer_class = StatusSerializer
     filter_backends = [filters.SearchFilter]
     search_fields = ['name']
+    permission_classes = [IsAuthenticated]
 
 
 class TaskViewSet(viewsets.ModelViewSet):
@@ -201,164 +181,9 @@ class TaskViewSet(viewsets.ModelViewSet):
 class RecordingViewSet(viewsets.ModelViewSet):
     queryset = Recording.objects.all()
     serializer_class = RecordingSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     filterset_fields = ['project', 'song']
-    search_fields = ['title', 'description']
 
-
-class MoodboardViewSet(viewsets.ModelViewSet):
-    queryset = Moodboard.objects.all()
-    serializer_class = MoodboardSerializer
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['project']
-
-
-class MoodViewSet(viewsets.ModelViewSet):
-    queryset = Mood.objects.all()
-    serializer_class = MoodSerializer
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['moodboard']
-
-
-class AudioViewSet(viewsets.ModelViewSet):
-    queryset = Audio.objects.all()
-    serializer_class = AudioSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['song', 'user', 'project']
-    search_fields = ['description']
-
-
-class AudioCommentViewSet(viewsets.ModelViewSet):
-    queryset = AudioComment.objects.all()
-    serializer_class = AudioCommentSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['audio', 'user']
-    search_fields = ['content']
-
-
-class StoryboardViewSet(viewsets.ModelViewSet):
-    queryset = Storyboard.objects.all()
-    serializer_class = StoryboardSerializer
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['project', 'user']
-
-
-class RetroViewSet(viewsets.ModelViewSet):
-    queryset = Retro.objects.all()
-    serializer_class = RetroSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['event', 'has_been_checked']
-    search_fields = ['learning']
-
-
-class QuestionViewSet(viewsets.ModelViewSet):
-    queryset = Question.objects.all()
-    serializer_class = QuestionSerializer
-    filter_backends = [filters.SearchFilter]
-    search_fields = ['title', 'name']
-
-
-class EvaluationViewSet(viewsets.ModelViewSet):
-    queryset = Evaluation.objects.all()
-    serializer_class = EvaluationSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['question', 'user', 'rating']
-    search_fields = ['comment']
-
-
-class VoteViewSet(viewsets.ModelViewSet):
-    queryset = Vote.objects.all()
-    serializer_class = VoteSerializer
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['user', 'vote']
-
-
-class AccountViewSet(viewsets.ModelViewSet):
-    queryset = Account.objects.all()
-    serializer_class = AccountSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['project']
-    search_fields = ['name']
-
-
-class TransactionViewSet(viewsets.ModelViewSet):
-    queryset = Transaction.objects.all()
-    serializer_class = TransactionSerializer
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['user', 'soll_account', 'haben_account']
-
-
-class TypeViewSet(viewsets.ModelViewSet):
-    queryset = Type.objects.all()
-    serializer_class = TypeSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['project']
-    search_fields = ['name']
-
-
-class PieceViewSet(viewsets.ModelViewSet):
-    queryset = Piece.objects.all()
-    serializer_class = PieceSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['serial']
-    search_fields = ['name']
-
-
-class PieceTypeViewSet(viewsets.ModelViewSet):
-    queryset = PieceType.objects.all()
-    serializer_class = PieceTypeSerializer
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['type', 'piece']
-
-
-class StackViewSet(viewsets.ModelViewSet):
-    queryset = Stack.objects.all()
-    serializer_class = StackSerializer
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['piece', 'size']
-
-
-class StackMovementViewSet(viewsets.ModelViewSet):
-    queryset = StackMovement.objects.all()
-    serializer_class = StackMovementSerializer
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['stack', 'user']
-
-
-class VisionViewSet(viewsets.ModelViewSet):
-    queryset = Vision.objects.all()
-    serializer_class = VisionSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['project', 'priority']
-    search_fields = ['title', 'content']
-
-
-class MeetingViewSet(viewsets.ModelViewSet):
-    queryset = Meeting.objects.all()
-    serializer_class = MeetingSerializer
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['project']
-    
-    def get_serializer_class(self):
-        if self.action == 'retrieve':
-            return MeetingDetailSerializer
-        return MeetingSerializer
-
-
-class TalkingPointViewSet(viewsets.ModelViewSet):
-    queryset = TalkingPoint.objects.all()
-    serializer_class = TalkingPointSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['meeting', 'user']
-    search_fields = ['title', 'content']
-
-
-class DecisionViewSet(viewsets.ModelViewSet):
-    queryset = Decision.objects.all()
-    serializer_class = DecisionSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['meeting']
-    search_fields = ['content']
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
