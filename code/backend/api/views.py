@@ -5,15 +5,16 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 
 from .models import (
     Organisation, Role, UserOrganisation, Calendar, Event, Project, Chat,
-    ChatUser, Message, Song, Timetable, Setlist, History, Status, Task, Recording
+    ChatUser, Message, Song, Timetable, Setlist, History, Status, Task, Recording, UserProject
 )
 from .serializers import (
     UserSerializer, UserDetailSerializer, OrganisationSerializer, RoleSerializer,
     UserOrganisationSerializer, CalendarSerializer, EventSerializer, EventDetailSerializer,
     ProjectSerializer, ProjectDetailSerializer, ChatSerializer, ChatUserSerializer,
     MessageSerializer, SongSerializer, TimetableSerializer, SetlistSerializer,
-    HistorySerializer, StatusSerializer, TaskSerializer, RecordingSerializer
+    HistorySerializer, StatusSerializer, TaskSerializer, RecordingSerializer, UserProjectSerializer
 )
+
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
@@ -115,6 +116,7 @@ class EventViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Event.objects.filter(calendar__in=get_user_accessible_calendars(self.request.user))
 
+# Everbody can create Projects but only in organisations they where added to and as a user you only acces project you were you are added to 
 class ProjectViewSet(viewsets.ModelViewSet):
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
@@ -202,6 +204,25 @@ class RecordingViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['project', 'song']
 
+class UserProjectViewSet(viewsets.ModelViewSet):
+    queryset = UserProject.objects.all()
+    serializer_class = UserProjectSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['user', 'project', 'role']
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """
+        This view returns UserProject records filtered by the current user
+        if they're not a staff member.
+        """
+        user = self.request.user
+        if user.is_staff:
+            return UserProject.objects.all()
+        return UserProject.objects.filter(
+            models.Q(user=user) | 
+            models.Q(project__in=Project.objects.filter(userproject__user=user))
+        ).distinct()
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod

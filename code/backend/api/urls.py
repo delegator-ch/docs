@@ -6,7 +6,7 @@ from .views import (
     UserViewSet, OrganisationViewSet, RoleViewSet, UserOrganisationViewSet,
     CalendarViewSet, EventViewSet, ProjectViewSet, ChatViewSet, ChatUserViewSet,
     MessageViewSet, SongViewSet, TimetableViewSet, SetlistViewSet,
-    HistoryViewSet, StatusViewSet, TaskViewSet, RecordingViewSet
+    HistoryViewSet, StatusViewSet, TaskViewSet, RecordingViewSet, UserProjectViewSet
 )
 # Update api/urls.py to include JWT views
 from rest_framework_simplejwt.views import (
@@ -32,6 +32,7 @@ router.register(r'history', HistoryViewSet)
 router.register(r'statuses', StatusViewSet)  # This is now a ReadOnlyModelViewSet
 router.register(r'tasks', TaskViewSet)
 router.register(r'recordings', RecordingViewSet)
+router.register(r'user-projects', UserProjectViewSet)
 
 # This line is crucial - make sure it exists at the bottom of the file
 urlpatterns = router.urls

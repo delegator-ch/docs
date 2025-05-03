@@ -186,3 +186,17 @@ class Recording(models.Model):
     
     def __str__(self):
         return self.title
+
+# Add this to your models.py file
+
+class UserProject(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    role = models.ForeignKey(Role, on_delete=models.CASCADE)
+    created = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ('user', 'project')
+    
+    def __str__(self):
+        return f"{self.user.username} in {self.project}"
