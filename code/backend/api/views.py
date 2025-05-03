@@ -28,7 +28,7 @@ from .serializers import (
     UserProjectSerializer, ChatAccessSerializer
 )
 
-from .permissions import CanAccessCalendar, CanAccessChat, HasSongPermission, IsMessageOwnerOrReadOnly, IsProjectMember, IsPartOfOrganisationAndStaff
+from .permissions import CanAccessCalendar, CanAccessChat, HasSongPermission, IsMessageOwnerOrReadOnly, IsProjectMember, IsPartOfOrganisationAndStaff, HasProjectAccess
 from .utils import get_user_accessible_calendars, get_user_accessible_chats, user_has_chat_access, get_user_project_events
 
 User = get_user_model()
@@ -147,17 +147,70 @@ class EventViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Event.objects.filter(calendar__in=get_user_accessible_calendars(self.request.user))
 
-# Everbody can create Projects but only in organisations they where added to and as a user you only acces project you were you are added to 
+# Access via Org and Role
+# Access via UserProject 
 class ProjectViewSet(viewsets.ModelViewSet):
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['event', 'priority']
+    permission_classes = [IsAuthenticated]
     
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return ProjectDetailSerializer
         return ProjectSerializer
+    
+    def get_queryset(self):
+        """
+        Filter projects to those the user has access to via:
+        1. Organization membership
+        2. Direct project assignment
+        """
+        user = self.request.user
+        
+        # Staff can see all projects
+        if user.is_staff:
+            return Project.objects.all()
+        
+        # Get user's organizations
+        user_orgs = UserOrganisation.objects.filter(user=user).values_list('organisation_id', flat=True)
+        
+        # Get projects from user's organizations
+        org_projects = Project.objects.filter(
+            event__calendar__organisation_id__in=user_orgs
+        )
+        
+        # Get projects where user is directly added
+        direct_projects = Project.objects.filter(
+            userproject__user=user
+        )
+        
+        # Combine both querysets
+        return (org_projects | direct_projects).distinct()
+    
+    def create(self, request, *args, **kwargs):
+        """
+        Check if user belongs to the organization before creating a project.
+        """
+        # Get the event and extract the organization
+        event_id = request.data.get('event')
+        
+        if event_id:
+            try:
+                event = Event.objects.select_related('calendar__organisation').get(id=event_id)
+                organisation = event.calendar.organisation
+                
+                # Check if user belongs to this organization
+                if not UserOrganisation.objects.filter(user=request.user, organisation=organisation).exists():
+                    return Response(
+                        {"detail": "You can only create projects in organizations you belong to."},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+            except Event.DoesNotExist:
+                pass  # Let the serializer handle the invalid event ID
+        
+        return super().create(request, *args, **kwargs)
 
 # Is only a view
 class ChatViewSet(viewsets.ModelViewSet):

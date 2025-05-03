@@ -86,39 +86,6 @@ class IsMessageOwnerOrReadOnly(BasePermission):
         # Write/delete permissions are only allowed to the message owner.
         return obj.user == request.user
 
-class IsProjectMember(BasePermission):
-    """
-    Allows access only to users who are members of the project related to the timetable.
-    """
-
-    def has_object_permission(self, request, view, obj):
-        user = request.user
-        if user.is_staff:
-            return True
-
-        return UserProject.objects.filter(
-            user=user,
-            project=obj.event.project
-        ).exists()
-
-    def has_permission(self, request, view):
-        if request.method != 'POST':
-            return True  # Allow read or other actions, restrict in `has_object_permission`
-
-        event_id = request.data.get('event')
-        if not event_id:
-            return False
-
-        try:
-            event = Event.objects.select_related('project').get(id=event_id)
-        except Event.DoesNotExist:
-            return False
-
-        return UserProject.objects.filter(
-            user=request.user,
-            project=event.project
-        ).exists()
-
 class IsPartOfOrganisation(BasePermission):
     """
     Allows access only to users who are part of at least one organisation.
@@ -151,3 +118,54 @@ class IsPartOfOrganisationAndStaff(BasePermission):
             
         # For other methods, use the default behavior
         return True
+
+
+class IsProjectMember(BasePermission):
+
+    def has_object_permission(self, request, view, obj):
+        user = request.user
+        if user.is_staff:
+            return True
+
+        return UserProject.objects.filter(
+            user=user,
+            project=obj.event.project
+        ).exists()
+
+    def has_permission(self, request, view):
+        if request.method != 'POST':
+            return True  # Allow read or other actions, restrict in `has_object_permission`
+
+        event_id = request.data.get('event')
+        if not event_id:
+            return False
+
+        try:
+            event = Event.objects.select_related('project').get(id=event_id)
+        except Event.DoesNotExist:
+            return False
+
+        return UserProject.objects.filter(
+            user=request.user,
+            project=event.project
+        ).exists()
+
+class HasProjectAccess(BasePermission):
+    """
+    Permission to check if user has access to a project.
+    """
+    def has_object_permission(self, request, view, obj):
+        user = request.user
+        
+        # Staff can access all projects
+        if user.is_staff:
+            return True
+        
+        # Check if project belongs to user's organization
+        if obj.event and obj.event.calendar and obj.event.calendar.organisation:
+            organisation = obj.event.calendar.organisation
+            if UserOrganisation.objects.filter(user=user, organisation=organisation).exists():
+                return True
+        
+        # If not in the organization, check direct project access
+        return UserProject.objects.filter(user=user, project=obj).exists()

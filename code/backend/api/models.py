@@ -86,8 +86,8 @@ class Project(models.Model):
     event = models.ForeignKey(Event, on_delete=models.SET_NULL, null=True, blank=True)
     deadline = models.DateTimeField(null=True, blank=True)
     priority = models.IntegerField(default=0)
+    organisation = models.ForeignKey(Organisation, on_delete=models.CASCADE)
 
-    
     def __str__(self):
         return f"Project {self.id}"
 
