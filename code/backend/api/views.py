@@ -245,14 +245,29 @@ class SetlistViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return get_user_project_queryset(self.request.user, self.queryset, project_field='event__project')
 
-
-
+# Access via Org
 class HistoryViewSet(viewsets.ModelViewSet):
     queryset = History.objects.all()
     serializer_class = HistorySerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['user']
     search_fields = ['activity']
+    permission_classes = [IsAuthenticated, IsOwnerOrStaff]  # We'll reuse this permission
+    
+    def get_queryset(self):
+        """
+        Filter history records to only those the user has access to:
+        1. History records of the user themselves
+        2. Staff can see all history records
+        """
+        user = self.request.user
+        
+        # Staff can see all history records
+        if user.is_staff:
+            return History.objects.all()
+            
+        # Users can only see their own history
+        return History.objects.filter(user=user)
 
 #Roles are defined by me not the user
 class StatusViewSet(viewsets.ReadOnlyModelViewSet): 
@@ -280,7 +295,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         check_project_access(self.request.user, serializer.validated_data.get('project'))
         serializer.save()
-        
+
 # Access via Project
 class RecordingViewSet(viewsets.ModelViewSet):
     queryset = Recording.objects.all()
