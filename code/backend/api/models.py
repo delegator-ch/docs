@@ -54,13 +54,13 @@ class UserOrganisation(models.Model):
     def __str__(self):
         return f"{self.user} - {self.organisation} ({self.role})"
 
-#not for every user
+
 class Calendar(models.Model):
     organisation = models.ForeignKey(Organisation, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True) # not required. If null it a project calender
     
     def __str__(self):
         return f"Calendar for {self.organisation}"
-
 
 class Event(models.Model):
     calendar = models.ForeignKey(Calendar, on_delete=models.CASCADE)

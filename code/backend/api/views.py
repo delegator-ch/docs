@@ -63,26 +63,69 @@ class OrganisationViewSet(viewsets.ModelViewSet):
         user_orgs = UserOrganisation.objects.filter(user=user).values_list('organisation_id', flat=True)
         return Organisation.objects.filter(id__in=user_orgs)
 
-
-class RoleViewSet(viewsets.ReadOnlyModelViewSet):  # Changed to ReadOnlyModelViewSet
+# Read only
+class RoleViewSet(viewsets.ReadOnlyModelViewSet): 
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
-    permission_classes = [IsAuthenticated]  # Added permission
+    permission_classes = [IsAuthenticated] 
 
 
 class UserOrganisationViewSet(viewsets.ModelViewSet):
     queryset = UserOrganisation.objects.all()
     serializer_class = UserOrganisationSerializer
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['user', 'organisation', 'role']
+    filterset_fields = ['organisation', 'role']
+    permission_classes = [IsAuthenticated]  # Ensures only authenticated users can access
+    
+    def get_queryset(self):
+        """
+        This view returns only UserOrganisation records for the current user.
+        """
+        user = self.request.user
+        return UserOrganisation.objects.filter(user=user)
 
-
+# acess when you are in the project or the calender has your id or 
 class CalendarViewSet(viewsets.ModelViewSet):
     queryset = Calendar.objects.all()
     serializer_class = CalendarSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['organisation']
-
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """
+        This view returns only calendars the user has access to, through:
+        1. Being part of a project associated with the calendar
+        2. Being part of the organization that owns the calendar with specific roles
+        3. The calendar is specifically associated with the user (user-specific calendars)
+        """
+        user = self.request.user
+        
+        # Get organizations the user belongs to with specific roles
+        specific_roles = [1, 2, 3]  # IDs of roles that should grant calendar access
+        user_orgs = UserOrganisation.objects.filter(
+            user=user, 
+            role_id__in=specific_roles
+        ).values_list('organisation_id', flat=True)
+        
+        # Get calendars from those organizations
+        user_calendars = Calendar.objects.filter(organisation_id__in=user_orgs)
+        
+        # Get projects the user is part of (via tasks)
+        user_projects = Project.objects.filter(task__user=user).distinct()
+        
+        # Get events from those projects
+        project_events = Event.objects.filter(project__in=user_projects).values_list('calendar_id', flat=True).distinct()
+        
+        # Get calendars from those events
+        project_calendars = Calendar.objects.filter(id__in=project_events)
+        
+        # Get user-specific calendars 
+        # You'll need to add a user field to your Calendar model for this to work
+        user_specific_calendars = Calendar.objects.filter(user=user)
+        
+        # Combine all querysets
+        return (user_calendars | project_calendars | user_specific_calendars).distinct()
 
 class EventViewSet(viewsets.ModelViewSet):
     queryset = Event.objects.all()
