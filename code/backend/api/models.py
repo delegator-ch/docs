@@ -23,7 +23,7 @@ class User(AbstractUser):
         help_text='Specific permissions for this user.',
         verbose_name='user permissions',
     )
-    
+    is_premium = models.BooleanField(default=False)
     def __str__(self):
         return self.username
 

@@ -28,7 +28,7 @@ from .serializers import (
     UserProjectSerializer, ChatAccessSerializer
 )
 
-from .permissions import CanAccessCalendar, CanAccessChat, HasSongPermission, IsMessageOwnerOrReadOnly, IsProjectMember, HasSetlistAccess, HasRecordingAccess, HasTaskAccess, IsOwnerOrStaff
+from .permissions import CanAccessCalendar, CanAccessChat, HasSongPermission, IsMessageOwnerOrReadOnly, IsProjectMember, IsPartOfOrganisationAndStaff
 from .utils import get_user_accessible_calendars, get_user_accessible_chats, user_has_chat_access, get_user_project_events
 
 User = get_user_model()
@@ -62,7 +62,7 @@ class OrganisationViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['name']
     search_fields = ['name']
-
+    
     def get_queryset(self):
         """
         This view returns only organizations the user has been invited to.
@@ -71,6 +71,30 @@ class OrganisationViewSet(viewsets.ModelViewSet):
         # Get organizations where this user has a UserOrganisation relationship
         user_orgs = UserOrganisation.objects.filter(user=user).values_list('organisation_id', flat=True)
         return Organisation.objects.filter(id__in=user_orgs)
+    
+    def create(self, request, *args, **kwargs):
+        """Check if user is premium before allowing organization creation"""
+        if not request.user.is_premium:
+            return Response(
+                {"detail": "Only premium users can create organizations."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().create(request, *args, **kwargs)
+    
+    def perform_create(self, serializer):
+        """When an organization is created, add the creating user as admin"""
+        organisation = serializer.save()
+        
+        # Get admin role
+        admin_role = Role.objects.get(name='Admin')  # Adjust as needed
+        
+        # Create UserOrganisation relationship
+        UserOrganisation.objects.create(
+            user=self.request.user,
+            organisation=organisation,
+            role=admin_role
+        )
+        
 
 # Read only
 class RoleViewSet(viewsets.ReadOnlyModelViewSet): 
@@ -252,7 +276,7 @@ class HistoryViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['user']
     search_fields = ['activity']
-    permission_classes = [IsAuthenticated, IsPartOfOrganisation]
+    permission_classes = [IsAuthenticated, IsPartOfOrganisationAndStaff]
     
     def get_queryset(self):
         """
@@ -358,3 +382,22 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def upgrade_to_premium(request):
+    """
+    Endpoint to upgrade a user to premium status.
+    In a real application, this would involve payment processing.
+    """
+    # Here you would integrate with a payment processor
+    # For demonstration, we'll just set the flag
+    
+    user = request.user
+    user.is_premium = True
+    user.save()
+    
+    return Response({
+        "detail": "Congratulations! You are now a premium user.",
+        "is_premium": True
+    })

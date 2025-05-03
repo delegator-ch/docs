@@ -140,3 +140,14 @@ class IsPartOfOrganisationAndStaff(BasePermission):
             user=user,
             role_id__in=self.STAFF_ROLE_IDS
         ).exists()
+
+    """
+    Permission to check if a user can create an organisation.
+    """
+    def has_permission(self, request, view):
+        # Allow all authenticated users to create organizations
+        if request.method == 'POST':
+            return request.user.is_authenticated
+            
+        # For other methods, use the default behavior
+        return True

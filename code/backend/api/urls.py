@@ -6,7 +6,7 @@ from .views import (
     UserViewSet, OrganisationViewSet, RoleViewSet, UserOrganisationViewSet,
     CalendarViewSet, EventViewSet, ProjectViewSet, ChatViewSet, ChatUserViewSet,
     MessageViewSet, SongViewSet, TimetableViewSet, SetlistViewSet,
-    HistoryViewSet, StatusViewSet, TaskViewSet, RecordingViewSet, UserProjectViewSet, ChatAccessViewSet
+    HistoryViewSet, StatusViewSet, TaskViewSet, RecordingViewSet, UserProjectViewSet, ChatAccessViewSet, upgrade_to_premium
 )
 # Update api/urls.py to include JWT views
 from rest_framework_simplejwt.views import (
@@ -51,4 +51,8 @@ urlpatterns += [
 urlpatterns += [
     path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     # ... keep the other token endpoints the same
+]
+
+urlpatterns += [
+    path('upgrade-to-premium/', upgrade_to_premium, name='upgrade_to_premium'),
 ]
