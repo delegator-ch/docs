@@ -117,12 +117,12 @@ class MessageSerializer(serializers.ModelSerializer):
         model = Message
         fields = ['id', 'user', 'chat', 'content', 'sent', 'edited', 'user_details', 'chat_details']
 
-
 class SongSerializer(serializers.ModelSerializer):
+    organisation_details = OrganisationSerializer(source='organisation', read_only=True)
+    
     class Meta:
         model = Song
-        fields = '__all__'
-
+        fields = ['id', 'nr', 'name', 'description', 'organisation', 'organisation_details']
 
 class TimetableSerializer(serializers.ModelSerializer):
     event_details = EventSerializer(source='event', read_only=True)

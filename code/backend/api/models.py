@@ -107,12 +107,14 @@ class ChatUser(models.Model):
     write = models.BooleanField(default=True)
     since = models.DateTimeField(auto_now_add=True)
     include_history = models.BooleanField(default=True)
+    muted = models.BooleanField(default=False)  # New field for muting chat notifications
     
     class Meta:
         unique_together = ('user', 'chat')
     
     def __str__(self):
-        return f"{self.user} in {self.chat}"
+        muted_status = " (muted)" if self.muted else ""
+        return f"{self.user} in {self.chat}{muted_status}"
 
 # Only send messages to chat your added to
 # Only read messages in chat your added to
@@ -131,6 +133,7 @@ class Song(models.Model):
     nr = models.IntegerField(default=0)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
+    organisation = models.ForeignKey(Organisation, on_delete=models.CASCADE, null=True, blank=True)
     
     def __str__(self):
         return self.name

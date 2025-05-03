@@ -35,7 +35,7 @@ def get_project_organizations(project):
         return [project.event.calendar.organisation]
     
     return []
-    
+
 def get_user_accessible_calendars(user):
     """
     Utility function to get all calendars a user has access to.
@@ -62,3 +62,10 @@ def get_user_accessible_calendars(user):
     
     # Combine accessible calendars
     return (org_calendars | project_calendars).distinct()
+
+def get_user_accessible_chats(user):
+    return Chat.objects.filter(
+        Q(chatuser__user=user, chatuser__view=True) |
+        Q(project__userproject__user=user) |
+        Q(project__event__calendar__organisation__userorganisation__user=user)
+    ).distinct()

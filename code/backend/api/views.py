@@ -1,29 +1,35 @@
-from rest_framework import viewsets, permissions, filters
-from django_filters.rest_framework import DjangoFilterBackend
+from django.utils import timezone
+from django.db.models import Q
 from django.contrib.auth import get_user_model
+
+from rest_framework import viewsets, status, filters
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied
+
+from django_filters.rest_framework import DjangoFilterBackend
+
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .models import (
     Organisation, Role, UserOrganisation, Calendar, Event, Project, Chat,
-    ChatUser, Message, Song, Timetable, Setlist, History, Status, Task, Recording, UserProject, ChatAccessView
+    ChatUser, Message, Song, Timetable, Setlist, History, Status,
+    Task, Recording, UserProject, ChatAccessView
 )
+
 from .serializers import (
     UserSerializer, UserDetailSerializer, OrganisationSerializer, RoleSerializer,
     UserOrganisationSerializer, CalendarSerializer, EventSerializer, EventDetailSerializer,
     ProjectSerializer, ProjectDetailSerializer, ChatSerializer, ChatUserSerializer,
     MessageSerializer, SongSerializer, TimetableSerializer, SetlistSerializer,
-    HistorySerializer, StatusSerializer, TaskSerializer, RecordingSerializer, UserProjectSerializer, ChatAccessSerializer
+    HistorySerializer, StatusSerializer, TaskSerializer, RecordingSerializer,
+    UserProjectSerializer, ChatAccessSerializer
 )
 
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.response import Response
-from rest_framework import status
-
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from rest_framework_simplejwt.views import TokenObtainPairView
-from .permissions import CanAccessCalendar
-from .utils import get_user_accessible_calendars
-from .permissions import CanAccessChat
+from .permissions import CanAccessCalendar, CanAccessChat, HasSongPermission
+from .utils import get_user_accessible_calendars, get_user_accessible_chats, user_has_chat_access
 
 User = get_user_model()
 
@@ -72,13 +78,13 @@ class RoleViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = RoleSerializer
     permission_classes = [IsAuthenticated] 
 
-
+ # Ensures only authenticated users can access
 class UserOrganisationViewSet(viewsets.ModelViewSet):
     queryset = UserOrganisation.objects.all()
     serializer_class = UserOrganisationSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['organisation', 'role']
-    permission_classes = [IsAuthenticated]  # Ensures only authenticated users can access
+    permission_classes = [IsAuthenticated] 
     
     def get_queryset(self):
         """
@@ -130,8 +136,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
         return ProjectSerializer
 
 
-
-
 class ChatViewSet(viewsets.ModelViewSet):
     queryset = Chat.objects.all()
     serializer_class = ChatSerializer
@@ -178,7 +182,47 @@ class MessageViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['user', 'chat']
     search_fields = ['content']
+    permission_classes = [IsAuthenticated, CanAccessChat]
 
+    def get_queryset(self):
+        if self.request.user.is_staff:
+            return Message.objects.all()
+        return Message.objects.filter(chat__in=get_user_accessible_chats(self.request.user))
+
+    def perform_create(self, serializer):
+        chat = serializer.validated_data.get('chat')
+        user = self.request.user
+
+        chat_user = ChatUser.objects.filter(user=user, chat=chat).first()
+        if chat_user and not chat_user.write:
+            raise PermissionDenied("You don't have write permission for this chat.")
+
+        if not chat_user and not user_has_chat_access(user, chat):
+            raise PermissionDenied("You don't have access to this chat.")
+
+        serializer.save(user=user)
+
+    def perform_update(self, serializer):
+        serializer.save(edited=timezone.now())
+
+    @action(detail=False, methods=['get'])
+    def unread(self, request):
+        user = request.user
+        accessible_chats = get_user_accessible_chats(user)
+
+        muted_chat_ids = ChatUser.objects.filter(
+            user=user, chat__in=accessible_chats, muted=True
+        ).values_list('chat_id', flat=True)
+
+        non_muted_chats = accessible_chats.exclude(id__in=muted_chat_ids)
+
+        unread_messages = Message.objects.filter(
+            chat__in=non_muted_chats
+            # + add unread logic
+        )
+
+        serializer = self.get_serializer(unread_messages, many=True)
+        return Response(serializer.data)
 
 class SongViewSet(viewsets.ModelViewSet):
     queryset = Song.objects.all()
@@ -186,7 +230,25 @@ class SongViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['nr']
     search_fields = ['name', 'description']
-
+    permission_classes = [IsAuthenticated, HasSongPermission]
+    
+    def get_queryset(self):
+        """
+        Filter songs based on user's organization membership.
+        """
+        user = self.request.user
+        
+        # Staff can see all songs
+        if user.is_staff:
+            return Song.objects.all()
+        
+        # Users can only see songs related to their organizations
+        user_orgs = UserOrganisation.objects.filter(user=user).values_list('organisation_id', flat=True)
+        
+        # Filter songs belonging to user's organizations
+        return Song.objects.filter(
+            organisation_id__in=user_orgs
+        ).distinct()
 
 class TimetableViewSet(viewsets.ModelViewSet):
     queryset = Timetable.objects.all()
