@@ -1,15 +1,13 @@
-# permissions.py
 from rest_framework.permissions import BasePermission
 from rest_framework.exceptions import PermissionDenied
-from .models import Calendar
-from .utils import get_user_accessible_calendars  # or wherever you defined it
 
-from rest_framework.permissions import BasePermission
-from .utils import user_has_chat_access
-
-from rest_framework.permissions import BasePermission
-from rest_framework.exceptions import PermissionDenied
-from .utils import get_user_accessible_chats
+from .models import Calendar, Event, UserProject
+from .utils import (
+    get_user_accessible_calendars,
+    get_user_accessible_chats,
+    user_has_chat_access,
+    user_has_project_event_access
+)
 
 class CanAccessChat(BasePermission):
     """
@@ -87,3 +85,91 @@ class IsMessageOwnerOrReadOnly(BasePermission):
 
         # Write/delete permissions are only allowed to the message owner.
         return obj.user == request.user
+
+class IsProjectMember(BasePermission):
+    """
+    Allows access only to users who are members of the project related to the timetable.
+    """
+
+    def has_object_permission(self, request, view, obj):
+        user = request.user
+        if user.is_staff:
+            return True
+
+        return UserProject.objects.filter(
+            user=user,
+            project=obj.event.project
+        ).exists()
+
+    def has_permission(self, request, view):
+        if request.method != 'POST':
+            return True  # Allow read or other actions, restrict in `has_object_permission`
+
+        event_id = request.data.get('event')
+        if not event_id:
+            return False
+
+        try:
+            event = Event.objects.select_related('project').get(id=event_id)
+        except Event.DoesNotExist:
+            return False
+
+        return UserProject.objects.filter(
+            user=request.user,
+            project=event.project
+        ).exists()
+
+class HasSetlistAccess(BasePermission):
+    def has_object_permission(self, request, view, obj):
+        user = request.user
+        
+        # Staff users have full access
+        if user.is_staff:
+            return True
+        
+        # Check project-based access
+        return user_has_project_event_access(user, obj.event)
+
+class HasTaskAccess(BasePermission):
+    """
+    Custom permission to only allow access to tasks for users who are members of the related project.
+    """
+    def has_object_permission(self, request, view, obj):
+        user = request.user
+        
+        # Staff users have full access
+        if user.is_staff:
+            return True
+        
+        # Check if user is assigned to this task
+        if obj.user == user:
+            return True
+        
+        # Check if user is a member of the project this task belongs to
+        return UserProject.objects.filter(
+            user=user,
+            project=obj.project
+        ).exists()
+    
+    def has_permission(self, request, view):
+        # For create operations, check if user is member of the project
+        if request.method == 'POST':
+            project_id = request.data.get('project')
+            if not project_id:
+                return False
+                
+            try:
+                project = Project.objects.get(id=project_id)
+                
+                # Check if user is a member of this project
+                is_project_member = UserProject.objects.filter(
+                    user=request.user,
+                    project=project
+                ).exists()
+                
+                return is_project_member or request.user.is_staff
+            except Project.DoesNotExist:
+                return False
+                
+        # For list and other non-object operations
+        return True

@@ -28,8 +28,8 @@ from .serializers import (
     UserProjectSerializer, ChatAccessSerializer
 )
 
-from .permissions import CanAccessCalendar, CanAccessChat, HasSongPermission, IsMessageOwnerOrReadOnly
-from .utils import get_user_accessible_calendars, get_user_accessible_chats, user_has_chat_access
+from .permissions import CanAccessCalendar, CanAccessChat, HasSongPermission, IsMessageOwnerOrReadOnly, IsProjectMember, HasSetlistAccess, HasTaskAccess
+from .utils import get_user_accessible_calendars, get_user_accessible_chats, user_has_chat_access, get_user_project_events
 
 User = get_user_model()
 
@@ -194,6 +194,7 @@ class MessageViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         serializer.save(edited=timezone.now())
 
+# Done
 class SongViewSet(viewsets.ModelViewSet):
     queryset = Song.objects.all()
     serializer_class = SongSerializer
@@ -220,20 +221,30 @@ class SongViewSet(viewsets.ModelViewSet):
             organisation_id__in=user_orgs
         ).distinct()
 
+# Acces via Project
 class TimetableViewSet(viewsets.ModelViewSet):
     queryset = Timetable.objects.all()
     serializer_class = TimetableSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['event']
     search_fields = ['name']
+    permission_classes = [IsAuthenticated, IsProjectMember]
 
+    def get_queryset(self):
+        return get_user_project_queryset(self.request.user, self.queryset, project_field='event__project')
 
+# Acces via Project
 class SetlistViewSet(viewsets.ModelViewSet):
     queryset = Setlist.objects.all()
     serializer_class = SetlistSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['event', 'song']
     search_fields = ['name']
+    permission_classes = [IsAuthenticated, HasSetlistAccess]
+
+    def get_queryset(self):
+        return get_user_project_queryset(self.request.user, self.queryset, project_field='event__project')
+
 
 
 class HistoryViewSet(viewsets.ModelViewSet):
@@ -251,20 +262,35 @@ class StatusViewSet(viewsets.ReadOnlyModelViewSet):
     search_fields = ['name']
     permission_classes = [IsAuthenticated]
 
-
+# Access via Project
 class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['user', 'project', 'status', 'deadline', 'event']
     search_fields = ['title', 'content']
+    permission_classes = [IsAuthenticated, HasTaskAccess]
 
+    def get_queryset(self):
+        user = self.request.user
+        return Task.objects.filter(
+            Q(user=user) | Q(project__userproject__user=user) | Q(user__is_staff=True)
+        ).distinct()
 
+    def perform_create(self, serializer):
+        check_project_access(self.request.user, serializer.validated_data.get('project'))
+        serializer.save()
+        
+# Access via Project
 class RecordingViewSet(viewsets.ModelViewSet):
     queryset = Recording.objects.all()
     serializer_class = RecordingSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['project', 'song']
+    permission_classes = [IsAuthenticated, HasRecordingAccess]
+
+    def get_queryset(self):
+        return get_user_project_queryset(self.request.user, self.queryset, project_field='project')
 
 class UserProjectViewSet(viewsets.ModelViewSet):
     queryset = UserProject.objects.all()

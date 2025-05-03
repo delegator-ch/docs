@@ -1,6 +1,7 @@
 
 
 from .models import UserOrganisation, Project, Chat, UserProject
+from rest_framework.exceptions import PermissionDenied
 
 def user_has_chat_access(user, chat):
     """
@@ -72,3 +73,41 @@ def get_user_accessible_chats(user):
         Q(project__event__calendar__organisation__userorganisation__user=user)
     ).distinct()
 
+
+def get_user_project_events(user):
+    """
+    Get all events from projects the user is a member of.
+    """
+    # Get projects the user is a member of
+    user_projects = Project.objects.filter(userproject__user=user)
+    
+    # Get events from those projects
+    return Event.objects.filter(project__in=user_projects)
+
+def user_has_project_event_access(user, event):
+    """
+    Check if a user has access to an event through project membership.
+    """
+    # Check if the user is a member of any project associated with this event
+    return UserProject.objects.filter(
+        user=user,
+        project__event=event
+    ).exists()
+
+
+def get_user_project_queryset(user, base_queryset, project_field='project'):
+    """
+    Return a filtered queryset for a user based on project membership.
+    """
+    if user.is_staff:
+        return base_queryset
+
+    return base_queryset.filter(
+        **{f'{project_field}__userproject__user': user}
+    ).distinct()
+
+def check_project_access(user, project):
+    if user.is_staff:
+        return
+    if not UserProject.objects.filter(user=user, project=project).exists():
+        raise PermissionDenied("You don't have access to this project.")
