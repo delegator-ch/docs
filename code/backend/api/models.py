@@ -139,21 +139,54 @@ class OrganisationChat(models.Model):
 
 # Chat access via org or project and exlcuded via ChatUser
 # Chat are created automaticly on a project or they belong to the org
+# Each chat alwazs belongs to a org
 class Chat(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, null=True, blank=True)
-    organisation_chat = models.OneToOneField(
-        OrganisationChat, 
-        on_delete=models.CASCADE,
-        null=True, 
-        blank=True
+    organisation = models.ForeignKey(Organisation, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255, default="Chat")
+    created = models.DateTimeField(auto_now_add=True)
+    min_role_level = models.IntegerField(
+        choices=[
+            (ROLE_LEVEL_CORE_TEAM, "Core Team Only"),
+            (ROLE_LEVEL_TEAM, "Contributors and Above"),
+            (ROLE_LEVEL_FAMILY_FRIENDS, "Family, Friends and Above"),
+            (ROLE_LEVEL_FANS, "Everyone (including Fans)"),
+        ],
+        default=ROLE_LEVEL_FANS
     )
     
     def __str__(self):
         if self.project:
             return f"Project Chat: {self.project}"
-        elif self.organisation_chat:
-            return f"Org Chat: {self.organisation_chat.name}"
-        return f"Independent Chat {self.id}"
+        elif self.organisation:
+            return f"Org Chat: {self.name} ({self.organisation.name})"
+        return f"Independent Chat: {self.name}"
+    
+    def user_has_access(self, user):
+        """Check if a user has access based on role level"""
+        if user.is_staff:
+            return True
+            
+        # Direct access via ChatUser always takes precedence
+        direct_access = self.chatuser_set.filter(user=user)
+        if direct_access.exists():
+            return direct_access.first().view
+            
+        # Project-based access
+        if self.project and UserProject.objects.filter(user=user, project=self.project).exists():
+            return True
+            
+        # Organisation-based access with role level check
+        if self.organisation:
+            user_org = UserOrganisation.objects.filter(
+                user=user, 
+                organisation=self.organisation
+            ).first()
+            
+            if user_org and user_org.role.level <= self.min_role_level:
+                return True
+                
+        return False
 
 # Only can see all your chats by user_id or all chats your added to
 # Only can add and remove user on chats with speific roles
