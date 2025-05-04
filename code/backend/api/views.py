@@ -1,12 +1,15 @@
 from django.utils import timezone
-from django.db.models import Q
+from django.db.models import Q, F
 from django.contrib.auth import get_user_model
+
+
 
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
+from rest_framework import status
 
 from django_filters.rest_framework import DjangoFilterBackend
 
@@ -16,7 +19,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import (
     Organisation, Role, UserOrganisation, Calendar, Event, Project, Chat,
     ChatUser, Message, Song, Timetable, Setlist, History, Status,
-    Task, Recording, UserProject, ChatAccessView, OrganisationChat
+    Task, Recording, UserProject, ChatAccessView
 )
 
 from .serializers import (
@@ -25,7 +28,7 @@ from .serializers import (
     ProjectSerializer, ProjectDetailSerializer, ChatSerializer, ChatUserSerializer,
     MessageSerializer, SongSerializer, TimetableSerializer, SetlistSerializer,
     HistorySerializer, StatusSerializer, TaskSerializer, RecordingSerializer,
-    UserProjectSerializer, ChatAccessSerializer, OrganisationChat
+    UserProjectSerializer, ChatAccessSerializer
 )
 
 from .permissions import CanAccessCalendar, CanAccessChat, HasSongPermission, IsMessageOwnerOrReadOnly, IsProjectMember, IsPartOfOrganisationAndStaff, HasProjectAccess
@@ -248,8 +251,8 @@ class ChatViewSet(viewsets.ModelViewSet):
         
         if user.is_staff:
             return Chat.objects.all()
-            
-        # Direct chat access through ChatUser
+        
+        # Direct chat access
         direct_chats = Chat.objects.filter(
             chatuser__user=user, 
             chatuser__view=True
@@ -260,17 +263,47 @@ class ChatViewSet(viewsets.ModelViewSet):
             project__userproject__user=user
         )
         
-        # Organization chats based on role
-        org_chats_ids = []
-        for org_chat in OrganisationChat.objects.all():
-            if org_chat.user_has_access(user):
-                org_chats_ids.append(org_chat.id)
-                
+        # Organisation-based access: role level must match or exceed Chat.min_role_level
         org_chats = Chat.objects.filter(
-            organisation_chat_id__in=org_chats_ids
+            organisation__userorganisation__user=user,
+            organisation__userorganisation__role__level__lte=F('min_role_level')
         )
         
         return (direct_chats | project_chats | org_chats).distinct()
+
+    def create(self, request, *args, **kwargs):
+        user = request.user
+        org_id = request.data.get('organisation')
+        project_id = request.data.get('project')
+
+        # 🛡️ Check organisation access
+        if org_id:
+            has_org_access = UserOrganisation.objects.filter(
+                user=user,
+                organisation_id=org_id
+            ).exists()
+
+            if not has_org_access and not user.is_staff:
+                return Response(
+                    {"detail": "You don't have access to this organisation."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+        # 🛡️ Check project access
+        if project_id:
+            has_project_access = UserProject.objects.filter(
+                user=user,
+                project_id=project_id
+            ).exists()
+
+            if not has_project_access and not user.is_staff:
+                return Response(
+                    {"detail": "You don't have access to this project."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+        return super().create(request, *args, **kwargs)
+
 
 # Only for muting
 class ChatUserViewSet(viewsets.ModelViewSet):

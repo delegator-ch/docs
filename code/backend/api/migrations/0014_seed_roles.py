@@ -11,7 +11,7 @@ def seed_roles(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0013_remove_chat_organisation'),  # replace with actual
+        ('api', '0013_remove_chat_organisation'),
     ]
 
     operations = [

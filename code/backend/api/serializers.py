@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import (
     Organisation, Role, UserOrganisation, Calendar, Event, Project, Chat,
-    ChatUser, Message, Song, Timetable, Setlist, History, Status, Task, Recording, UserProject, ChatAccessView, OrganisationChat
+    ChatUser, Message, Song, Timetable, Setlist, History, Status, Task, Recording, UserProject, ChatAccessView
 )
 
 User = get_user_model()
@@ -45,18 +45,15 @@ class UserSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
-
 class RoleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Role
         fields = '__all__'
 
-
 class OrganisationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Organisation
         fields = '__all__'
-
 
 class UserOrganisationSerializer(serializers.ModelSerializer):
     user_details = UserSerializer(source='user', read_only=True)
@@ -67,14 +64,12 @@ class UserOrganisationSerializer(serializers.ModelSerializer):
         model = UserOrganisation
         fields = ['id', 'user', 'organisation', 'role', 'user_details', 'organisation_details', 'role_details']
 
-
 class CalendarSerializer(serializers.ModelSerializer):
     organisation_details = OrganisationSerializer(source='organisation', read_only=True)
     
     class Meta:
         model = Calendar
         fields = ['id', 'organisation', 'organisation_details']
-
 
 class EventSerializer(serializers.ModelSerializer):
     calendar_details = CalendarSerializer(source='calendar', read_only=True)
@@ -83,7 +78,6 @@ class EventSerializer(serializers.ModelSerializer):
         model = Event
         fields = ['id', 'calendar', 'start', 'end', 'is_gig', 'calendar_details']
 
-
 class ProjectSerializer(serializers.ModelSerializer):
     event_details = EventSerializer(source='event', read_only=True)
     
@@ -91,35 +85,25 @@ class ProjectSerializer(serializers.ModelSerializer):
         model = Project
         fields = ['id', 'event', 'deadline', 'priority', 'event_details', 'organisation']
 
-
-class OrganisationChatSerializer(serializers.ModelSerializer):
-    organisation_details = OrganisationSerializer(source='organisation', read_only=True)
-    
-    class Meta:
-        model = OrganisationChat
-        fields = ['id', 'organisation', 'name', 'created', 'min_role_level', 'organisation_details']
-
 class ChatSerializer(serializers.ModelSerializer):
     project_details = ProjectSerializer(source='project', read_only=True)
-    organisation_chat_details = OrganisationChatSerializer(source='organisation_chat', read_only=True)
+    organisation_details = OrganisationSerializer(source='organisation', read_only=True)
     chat_type = serializers.SerializerMethodField()
     
     class Meta:
         model = Chat
-        fields = ['id', 'project', 'organisation_chat', 'project_details', 
-                 'organisation_chat_details', 'chat_type']
+        fields = ['id', 'project', 'organisation', 'name', 'created', 'min_role_level',
+                 'project_details', 'organisation_details', 'chat_type']
         extra_kwargs = {
             'project': {'required': False},
-            'organisation_chat': {'required': False},
+            'organisation': {'required': True},
         }
     
     def get_chat_type(self, obj):
         if obj.project:
             return 'project'
-        elif obj.organisation_chat:
-            return 'organisation'
-        return 'direct'
-
+        return 'organisation'
+    
 class ChatUserSerializer(serializers.ModelSerializer):
     user_details = UserSerializer(source='user', read_only=True)
     chat_details = ChatSerializer(source='chat', read_only=True)
@@ -127,7 +111,6 @@ class ChatUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChatUser
         fields = ['id', 'user', 'chat', 'view', 'write', 'since', 'include_history', 'user_details', 'chat_details']
-
 
 class MessageSerializer(serializers.ModelSerializer):
     user_details = UserSerializer(source='user', read_only=True)
@@ -151,7 +134,6 @@ class TimetableSerializer(serializers.ModelSerializer):
         model = Timetable
         fields = ['id', 'event', 'time', 'name', 'event_details']
 
-
 class SetlistSerializer(serializers.ModelSerializer):
     event_details = EventSerializer(source='event', read_only=True)
     song_details = SongSerializer(source='song', read_only=True)
@@ -160,7 +142,6 @@ class SetlistSerializer(serializers.ModelSerializer):
         model = Setlist
         fields = ['id', 'event', 'time', 'name', 'song', 'event_details', 'song_details']
 
-
 class HistorySerializer(serializers.ModelSerializer):
     user_details = UserSerializer(source='user', read_only=True)
     
@@ -168,12 +149,10 @@ class HistorySerializer(serializers.ModelSerializer):
         model = History
         fields = ['id', 'user', 'activity', 'timestamp', 'user_details']
 
-
 class StatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = Status
         fields = '__all__'
-
 
 class TaskSerializer(serializers.ModelSerializer):
     user_details = UserSerializer(source='user', read_only=True)
@@ -200,7 +179,6 @@ class TaskSerializer(serializers.ModelSerializer):
             }
         return None
 
-
 class RecordingSerializer(serializers.ModelSerializer):
     project_details = ProjectSerializer(source='project', read_only=True)
     song_details = SongSerializer(source='song', read_only=True)
@@ -209,9 +187,7 @@ class RecordingSerializer(serializers.ModelSerializer):
         model = Recording
         fields = ['project', 'song', 'title', 'description', 'project_details', 'song_details']
 
-
 # Nested serializers for more detailed views
-
 class ProjectDetailSerializer(serializers.ModelSerializer):
     event_details = EventSerializer(source='event', read_only=True)
     tasks = TaskSerializer(source='task_set', many=True, read_only=True)
@@ -219,7 +195,6 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = ['id', 'event', 'deadline', 'priority', 'event_details', 'tasks']
-
 
 class EventDetailSerializer(serializers.ModelSerializer):
     calendar_details = CalendarSerializer(source='calendar', read_only=True)
@@ -231,7 +206,6 @@ class EventDetailSerializer(serializers.ModelSerializer):
         model = Event
         fields = ['id', 'calendar', 'start', 'end', 'is_gig', 'calendar_details',
                  'timetables', 'setlists', 'projects']
-
 
 class UserDetailSerializer(serializers.ModelSerializer):
     organisations = serializers.SerializerMethodField()
@@ -257,7 +231,6 @@ class UserProjectSerializer(serializers.ModelSerializer):
         model = UserProject
         fields = ['id', 'user', 'project', 'role', 'created', 'user_details', 'project_details', 'role_details']
         read_only_fields = ['created']
-
 
 class ChatAccessSerializer(serializers.ModelSerializer):
     class Meta:
