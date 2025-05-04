@@ -18,31 +18,45 @@ class CanAccessChat(BasePermission):
 
 class CanAccessCalendar(BasePermission):
     """
-    Ensures the user can access (or write to) the calendar in the request.
+    Ensures the user can access (read/write) the calendar in the request.
+    Checks permissions for all CRUD operations.
     """
 
     def has_permission(self, request, view):
-        if view.action in ['create']:
+        # For create operations, check if user has access to the specified calendar
+        if view.action == 'create':
             calendar_id = request.data.get('calendar')
             if not calendar_id:
                 raise PermissionDenied("Calendar ID is required.")
+            
             accessible = get_user_accessible_calendars(request.user)
             if not accessible.filter(id=calendar_id).exists():
                 raise PermissionDenied("You don't have access to this calendar.")
+        
+        # For list/retrieve, the filtering is done in get_queryset
         return True
 
     def has_object_permission(self, request, view, obj):
         """
-        For updates: check if the event's calendar is accessible.
-        If changing calendar, check the new one too.
+        Check permissions for retrieve, update, partial_update, destroy actions.
+        For retrieve: Check if user can access this calendar
+        For update/delete: Check if user can access both current and new calendar (if changing)
         """
+        # Get calendars the user can access
         accessible = get_user_accessible_calendars(request.user)
+        
+        # For all object operations, check if user has access to the object's calendar
+        if obj.calendar not in accessible:
+            return False
+        
+        # For update operations, also check if user has access to the new calendar (if changing)
         if view.action in ['update', 'partial_update']:
             new_calendar_id = request.data.get('calendar')
-            if new_calendar_id and int(new_calendar_id) != obj.calendar_id:
+            if new_calendar_id and int(new_calendar_id) != obj.calendar.id:
                 if not accessible.filter(id=new_calendar_id).exists():
-                    raise PermissionDenied("You don't have permission to move the event to this calendar.")
-        return obj.calendar in accessible
+                    return False
+        
+        return True
 
 class HasSongPermission(BasePermission):
     """

@@ -114,27 +114,30 @@ def check_project_access(user, project):
 
 def get_user_accessible_calendars(user):
     """
-    Get calendars the user has access to through:
+    Get all calendars a user has access to through:
     1. Organization membership
-    2. Direct calendar assignment
-    3. Project assignment
+    2. User's own calendars (where user is directly assigned)
+    3. Project membership (via UserProject)
+    
+    Returns a QuerySet of Calendar objects.
     """
+    # Staff can access all calendars
+    if user.is_staff:
+        return Calendar.objects.all()
+    
     # Get user's organizations
     user_orgs = UserOrganisation.objects.filter(user=user).values_list('organisation_id', flat=True)
     
     # Get calendars from user's organizations
     org_calendars = Calendar.objects.filter(organisation_id__in=user_orgs)
     
-    # Get calendars where user is directly added
-    direct_calendars = Calendar.objects.filter(user=user)  # Adjust field name if different
+    # Get user's directly assigned calendars
+    direct_calendars = Calendar.objects.filter(user=user)
     
-    # Get calendars from projects where user is added
+    # Get calendars from projects where user is a member
     project_calendars = Calendar.objects.filter(
         event__project__userproject__user=user
     )
     
-    # First combine without distinct, then apply distinct once
-    combined_query = org_calendars | direct_calendars | project_calendars
-    
-    # Now apply distinct
-    return combined_query.distinct()
+    # Combine the queries and apply distinct to remove duplicates
+    return (org_calendars | direct_calendars | project_calendars).distinct()
