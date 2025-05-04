@@ -4,6 +4,11 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 
+ROLE_LEVEL_CORE_TEAM = 2    # Long-term members
+ROLE_LEVEL_TEAM = 3   # Short-term members
+ROLE_LEVEL_FAMILY_FRIENDS = 4 # Family and friends
+ROLE_LEVEL_FANS = 5       # Fans/general public
+
 # Define User model first, before any other models
 class User(AbstractUser):
     created = models.DateTimeField(auto_now_add=True)
@@ -38,6 +43,10 @@ class Organisation(models.Model):
 #not for every user
 class Role(models.Model):
     name = models.CharField(max_length=100)
+    level = models.IntegerField(default=ROLE_LEVEL_FANS)  # Default to lowest access
+    
+    def __str__(self):
+        return self.name
     
     def __str__(self):
         return self.name
@@ -91,12 +100,60 @@ class Project(models.Model):
     def __str__(self):
         return f"Project {self.id}"
 
-# Chat only via table ChatUser or via project
-class Chat(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+
+class OrganisationChat(models.Model):
+    """Chat specific to an organization with role-based access"""
+    organisation = models.ForeignKey(Organisation, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+    created = models.DateTimeField(auto_now_add=True)
+    # Minimum role level required to access this chat
+    min_role_level = models.IntegerField(
+        choices=[
+            (ROLE_LEVEL_CORE_TEAM, "Core Team Only"),
+            (ROLE_LEVEL_TEAM, "Contributors and Above"),
+            (ROLE_LEVEL_FAMILY_FRIENDS, "Family, Friends and Above"),
+            (ROLE_LEVEL_FANS, "Everyone (including Fans)"),
+        ],
+        default=ROLE_LEVEL_FANS
+    )
     
     def __str__(self):
-        return f"Chat for {self.project}"
+        return f"{self.name} ({self.organisation.name})"
+    
+    def user_has_access(self, user):
+        """Check if a user has access to this chat based on their role"""
+        if user.is_staff:
+            return True
+            
+        # Get the user's role in this organization
+        user_org = UserOrganisation.objects.filter(
+            user=user, 
+            organisation=self.organisation
+        ).first()
+        
+        if not user_org:
+            return False
+            
+        # Check if the user's role level is sufficient
+        return user_org.role.level <= self.min_role_level
+
+# Chat access via org or project and exlcuded via ChatUser
+# Chat are created automaticly on a project or they belong to the org
+class Chat(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, null=True, blank=True)
+    organisation_chat = models.OneToOneField(
+        OrganisationChat, 
+        on_delete=models.CASCADE,
+        null=True, 
+        blank=True
+    )
+    
+    def __str__(self):
+        if self.project:
+            return f"Project Chat: {self.project}"
+        elif self.organisation_chat:
+            return f"Org Chat: {self.organisation_chat.name}"
+        return f"Independent Chat {self.id}"
 
 # Only can see all your chats by user_id or all chats your added to
 # Only can add and remove user on chats with speific roles
@@ -165,7 +222,6 @@ class History(models.Model):
     
     def __str__(self):
         return f"{self.user} - {self.activity}"
-
 
 #Backlog, in-progress
 #Not editable by normal users

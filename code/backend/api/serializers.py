@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import (
     Organisation, Role, UserOrganisation, Calendar, Event, Project, Chat,
-    ChatUser, Message, Song, Timetable, Setlist, History, Status, Task, Recording, UserProject, ChatAccessView
+    ChatUser, Message, Song, Timetable, Setlist, History, Status, Task, Recording, UserProject, ChatAccessView, OrganisationChat
 )
 
 User = get_user_model()
@@ -92,13 +92,33 @@ class ProjectSerializer(serializers.ModelSerializer):
         fields = ['id', 'event', 'deadline', 'priority', 'event_details', 'organisation']
 
 
+class OrganisationChatSerializer(serializers.ModelSerializer):
+    organisation_details = OrganisationSerializer(source='organisation', read_only=True)
+    
+    class Meta:
+        model = OrganisationChat
+        fields = ['id', 'organisation', 'name', 'created', 'min_role_level', 'organisation_details']
+
 class ChatSerializer(serializers.ModelSerializer):
     project_details = ProjectSerializer(source='project', read_only=True)
+    organisation_chat_details = OrganisationChatSerializer(source='organisation_chat', read_only=True)
+    chat_type = serializers.SerializerMethodField()
     
     class Meta:
         model = Chat
-        fields = ['id', 'project', 'project_details']
-
+        fields = ['id', 'project', 'organisation_chat', 'project_details', 
+                 'organisation_chat_details', 'chat_type']
+        extra_kwargs = {
+            'project': {'required': False},
+            'organisation_chat': {'required': False},
+        }
+    
+    def get_chat_type(self, obj):
+        if obj.project:
+            return 'project'
+        elif obj.organisation_chat:
+            return 'organisation'
+        return 'direct'
 
 class ChatUserSerializer(serializers.ModelSerializer):
     user_details = UserSerializer(source='user', read_only=True)
