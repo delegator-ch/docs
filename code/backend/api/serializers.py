@@ -89,7 +89,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Project
-        fields = ['id', 'event', 'deadline', 'priority', 'event_details']
+        fields = ['id', 'event', 'deadline', 'priority', 'event_details', 'organisation']
 
 
 class ChatSerializer(serializers.ModelSerializer):

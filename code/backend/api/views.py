@@ -29,7 +29,7 @@ from .serializers import (
 )
 
 from .permissions import CanAccessCalendar, CanAccessChat, HasSongPermission, IsMessageOwnerOrReadOnly, IsProjectMember, IsPartOfOrganisationAndStaff, HasProjectAccess
-from .utils import get_user_accessible_calendars, get_user_accessible_chats, user_has_chat_access, get_user_project_events
+from .utils import get_user_accessible_calendars, get_user_accessible_chats, user_has_chat_access, get_user_project_events, get_user_accessible_calendars
 
 User = get_user_model()
 
@@ -121,15 +121,44 @@ class UserOrganisationViewSet(viewsets.ModelViewSet):
 class CalendarViewSet(viewsets.ModelViewSet):
     queryset = Calendar.objects.all()
     serializer_class = CalendarSerializer
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['organisation']
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        """
-        This view returns only calendars the user has access to.
-        """
         return get_user_accessible_calendars(self.request.user)
+    
+    def create(self, request, *args, **kwargs):
+        """
+        Check if user belongs to the organization before creating a calendar.
+        """
+        organisation_id = request.data.get('organisation')
+        
+        # If created as part of a project, check project permissions
+        project_id = request.data.get('project')
+        if project_id:
+            try:
+                project = Project.objects.get(id=project_id)
+                # Check if user has access to this project
+                has_project_access = UserProject.objects.filter(user=request.user, project=project).exists()
+                if has_project_access:
+                    return super().create(request, *args, **kwargs)
+            except Project.DoesNotExist:
+                pass
+        
+        # Otherwise check organization permissions
+        if organisation_id:
+            # Check if user belongs to this organization
+            has_org_access = UserOrganisation.objects.filter(
+                user=request.user,
+                organisation_id=organisation_id
+            ).exists()
+            
+            if not has_org_access:
+                return Response(
+                    {"detail": "You can only create calendars in organizations you belong to."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        
+        return super().create(request, *args, **kwargs)
 
 #acces only via calender access
 class EventViewSet(viewsets.ModelViewSet):
@@ -162,32 +191,30 @@ class ProjectViewSet(viewsets.ModelViewSet):
         return ProjectSerializer
     
     def get_queryset(self):
-        """
-        Filter projects to those the user has access to via:
-        1. Organization membership
-        2. Direct project assignment
-        """
         user = self.request.user
+        print(f"User: {user.username}")
         
-        # Staff can see all projects
-        if user.is_staff:
-            return Project.objects.all()
-        
-        # Get user's organizations
         user_orgs = UserOrganisation.objects.filter(user=user).values_list('organisation_id', flat=True)
+        print(f"User orgs IDs: {list(user_orgs)}")
         
-        # Get projects from user's organizations
+        # Check if projects exist at all
+        all_projects = Project.objects.all()
+        print(f"Total projects in system: {all_projects.count()}")
+        
+        # Check org projects
         org_projects = Project.objects.filter(
-            event__calendar__organisation_id__in=user_orgs
+            organisation_id__in=user_orgs
         )
+        print(f"Projects via org membership: {org_projects.count()}")
         
-        # Get projects where user is directly added
-        direct_projects = Project.objects.filter(
-            userproject__user=user
-        )
+        # Check direct projects
+        direct_projects = Project.objects.filter(userproject__user=user)
+        print(f"Projects via direct assignment: {direct_projects.count()}")
         
-        # Combine both querysets
-        return (org_projects | direct_projects).distinct()
+        result = (org_projects | direct_projects).distinct()
+        print(f"Final result count: {result.count()}")
+    
+        return result
     
     def create(self, request, *args, **kwargs):
         """

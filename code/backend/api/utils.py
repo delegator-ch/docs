@@ -1,6 +1,6 @@
 
 
-from .models import UserOrganisation, Project, Chat, UserProject
+from .models import UserOrganisation, Project, Chat, UserProject, Calendar, Event
 from rest_framework.exceptions import PermissionDenied
 
 def user_has_chat_access(user, chat):
@@ -111,3 +111,30 @@ def check_project_access(user, project):
         return
     if not UserProject.objects.filter(user=user, project=project).exists():
         raise PermissionDenied("You don't have access to this project.")
+
+def get_user_accessible_calendars(user):
+    """
+    Get calendars the user has access to through:
+    1. Organization membership
+    2. Direct calendar assignment
+    3. Project assignment
+    """
+    # Get user's organizations
+    user_orgs = UserOrganisation.objects.filter(user=user).values_list('organisation_id', flat=True)
+    
+    # Get calendars from user's organizations
+    org_calendars = Calendar.objects.filter(organisation_id__in=user_orgs)
+    
+    # Get calendars where user is directly added
+    direct_calendars = Calendar.objects.filter(user=user)  # Adjust field name if different
+    
+    # Get calendars from projects where user is added
+    project_calendars = Calendar.objects.filter(
+        event__project__userproject__user=user
+    )
+    
+    # First combine without distinct, then apply distinct once
+    combined_query = org_calendars | direct_calendars | project_calendars
+    
+    # Now apply distinct
+    return combined_query.distinct()
