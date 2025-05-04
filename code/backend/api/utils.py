@@ -2,6 +2,7 @@
 
 from .models import UserOrganisation, Project, Chat, UserProject, Calendar, Event
 from rest_framework.exceptions import PermissionDenied
+from django.db.models import Q
 
 def user_has_chat_access(user, chat):
     """
@@ -65,12 +66,12 @@ def get_user_accessible_calendars(user):
     return (org_calendars | project_calendars).distinct()
 
 def get_user_accessible_chats(user):
-    if user.is_staff: # TODO: Check this out
+    if user.is_staff:
         return Chat.objects.all()
     return Chat.objects.filter(
         Q(chatuser__user=user, chatuser__view=True) |
         Q(project__userproject__user=user) |
-        Q(project__event__calendar__organisation__userorganisation__user=user)
+        Q(organisation__userorganisation__user=user)
     ).distinct()
 
 

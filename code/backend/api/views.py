@@ -304,7 +304,6 @@ class ChatViewSet(viewsets.ModelViewSet):
 
         return super().create(request, *args, **kwargs)
 
-
 # Only for muting
 class ChatUserViewSet(viewsets.ModelViewSet):
     queryset = ChatUser.objects.all()
