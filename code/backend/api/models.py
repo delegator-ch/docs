@@ -4,6 +4,10 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 
+# So the song nr can be auto generated
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
+
 ROLE_LEVEL_CORE_TEAM = 2    # Long-term members
 ROLE_LEVEL_TEAM = 3   # Short-term members
 ROLE_LEVEL_FAMILY_FRIENDS = 4 # Family and friends
@@ -183,13 +187,25 @@ class Message(models.Model):
 
 # Only read and write on orginisations your added to
 class Song(models.Model):
-    nr = models.IntegerField(default=0)
+    nr = models.IntegerField(editable=False)  # Make it non-editable since it's auto-generated
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
-    organisation = models.ForeignKey(Organisation, on_delete=models.CASCADE, null=True, blank=True)
+    organisation = models.ForeignKey(Organisation, on_delete=models.CASCADE)
     
     def __str__(self):
         return self.name
+
+@receiver(pre_save, sender=Song)
+def set_song_number(sender, instance, **kwargs):
+    # Only set nr if this is a new song (doesn't have an ID yet)
+    if not instance.pk:
+        # Find the highest nr for songs in this organization
+        max_nr = Song.objects.filter(organisation=instance.organisation).aggregate(
+            models.Max('nr')
+        )['nr__max']
+        
+        # If no songs exist yet for this org, start at 1, otherwise increment
+        instance.nr = 1 if max_nr is None else max_nr + 1
 
 # Only access (CRUD) on projectes your are added to
 class Timetable(models.Model):

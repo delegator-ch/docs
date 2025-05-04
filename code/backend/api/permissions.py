@@ -1,7 +1,9 @@
 from rest_framework.permissions import BasePermission
 from rest_framework.exceptions import PermissionDenied
+from rest_framework import permissions
 
-from .models import Calendar, Event, UserProject
+
+from .models import Calendar, Event, UserProject, UserOrganisation
 from .utils import (
     get_user_accessible_calendars,
     get_user_accessible_chats,
