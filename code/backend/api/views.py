@@ -429,7 +429,7 @@ class SetlistViewSet(viewsets.ModelViewSet):
         return Setlist.objects.filter(event__in=accessible_events)
 
 # Access via Org
-class HistoryViewSet(viewsets.ModelViewSet):
+class HistoryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = History.objects.all()
     serializer_class = HistorySerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
