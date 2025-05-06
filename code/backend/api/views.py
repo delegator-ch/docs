@@ -407,7 +407,26 @@ class SetlistViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsProjectMember]
 
     def get_queryset(self):
-        return get_user_project_queryset(self.request.user, self.queryset, project_field='event__project')
+        user = self.request.user
+        
+        # Staff can access all setlists
+        if user.is_staff:
+            return Setlist.objects.all()
+            
+        # Get events from projects the user has access to
+        user_projects = Project.objects.filter(userproject__user=user)
+        project_events = Event.objects.filter(project__in=user_projects)
+        
+        # Get events from organizations the user belongs to
+        user_orgs = UserOrganisation.objects.filter(user=user).values_list('organisation_id', flat=True)
+        org_calendars = Calendar.objects.filter(organisation_id__in=user_orgs)
+        org_events = Event.objects.filter(calendar__in=org_calendars)
+        
+        # Combine all accessible events
+        accessible_events = (project_events | org_events).distinct()
+        
+        # Return setlists for accessible events
+        return Setlist.objects.filter(event__in=accessible_events)
 
 # Access via Org
 class HistoryViewSet(viewsets.ModelViewSet):

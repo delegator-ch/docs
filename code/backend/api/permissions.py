@@ -3,7 +3,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework import permissions
 
 
-from .models import Calendar, Event, UserProject, UserOrganisation
+from .models import Calendar, Event, UserProject, UserOrganisation, Project
 from .utils import (
     get_user_accessible_calendars,
     get_user_accessible_chats,
@@ -141,21 +141,39 @@ class IsProjectMember(BasePermission):
         if user.is_staff:
             return True
 
-        # For Timetable objects
+        # For objects with an event (like Setlist, Timetable)
         if hasattr(obj, 'event'):
-            # Find projects related to this event
+            # Check direct project access
             related_projects = Project.objects.filter(event=obj.event)
-            return UserProject.objects.filter(
+            if UserProject.objects.filter(
                 user=user,
                 project__in=related_projects
-            ).exists()
+            ).exists():
+                return True
+                
+            # Check organization access via event's calendar
+            if obj.event.calendar and hasattr(obj.event.calendar, 'organisation'):
+                org = obj.event.calendar.organisation
+                return UserOrganisation.objects.filter(
+                    user=user,
+                    organisation=org
+                ).exists()
             
-        # For other object types with direct project relationship
+        # For objects with direct project relationship
         if hasattr(obj, 'project'):
-            return UserProject.objects.filter(
+            # Check direct project access
+            if UserProject.objects.filter(
                 user=user,
                 project=obj.project
-            ).exists()
+            ).exists():
+                return True
+                
+            # Check organization access
+            if hasattr(obj.project, 'organisation'):
+                return UserOrganisation.objects.filter(
+                    user=user,
+                    organisation=obj.project.organisation
+                ).exists()
 
         return False
         
@@ -168,14 +186,28 @@ class IsProjectMember(BasePermission):
             return False
 
         try:
-            event = Event.objects.select_related('project').get(id=event_id)
+            # Get the event without using select_related
+            event = Event.objects.get(id=event_id)
+            
+            # Check direct project access
+            related_projects = Project.objects.filter(event=event)
+            if UserProject.objects.filter(
+                user=request.user,
+                project__in=related_projects
+            ).exists():
+                return True
+                
+            # Check organization access via event's calendar
+            if event.calendar and hasattr(event.calendar, 'organisation'):
+                org = event.calendar.organisation
+                return UserOrganisation.objects.filter(
+                    user=request.user,
+                    organisation=org
+                ).exists()
+                
+            return False
         except Event.DoesNotExist:
             return False
-
-        return UserProject.objects.filter(
-            user=request.user,
-            project=event.project
-        ).exists()
 
 class HasProjectAccess(BasePermission):
     """
