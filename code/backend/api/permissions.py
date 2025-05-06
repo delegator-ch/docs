@@ -135,19 +135,30 @@ class IsPartOfOrganisationAndStaff(BasePermission):
         # For other methods, use the default behavior
         return True
 
-
 class IsProjectMember(BasePermission):
-
     def has_object_permission(self, request, view, obj):
         user = request.user
         if user.is_staff:
             return True
 
-        return UserProject.objects.filter(
-            user=user,
-            project=obj.event.project
-        ).exists()
+        # For Timetable objects
+        if hasattr(obj, 'event'):
+            # Find projects related to this event
+            related_projects = Project.objects.filter(event=obj.event)
+            return UserProject.objects.filter(
+                user=user,
+                project__in=related_projects
+            ).exists()
+            
+        # For other object types with direct project relationship
+        if hasattr(obj, 'project'):
+            return UserProject.objects.filter(
+                user=user,
+                project=obj.project
+            ).exists()
 
+        return False
+        
     def has_permission(self, request, view):
         if request.method != 'POST':
             return True  # Allow read or other actions, restrict in `has_object_permission`

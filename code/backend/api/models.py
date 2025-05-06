@@ -195,6 +195,7 @@ class Song(models.Model):
     def __str__(self):
         return self.name
 
+# So we can update song number automatcily
 @receiver(pre_save, sender=Song)
 def set_song_number(sender, instance, **kwargs):
     # Only set nr if this is a new song (doesn't have an ID yet)

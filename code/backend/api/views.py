@@ -32,7 +32,7 @@ from .serializers import (
 )
 
 from .permissions import CanAccessCalendar, CanAccessChat, HasSongPermission, IsMessageOwnerOrReadOnly, IsProjectMember, IsPartOfOrganisationAndStaff, HasProjectAccess
-from .utils import get_user_accessible_calendars, get_user_accessible_chats, user_has_chat_access, get_user_project_events, get_user_accessible_calendars
+from .utils import get_user_accessible_calendars, get_user_accessible_chats, user_has_chat_access, get_user_project_events, get_user_accessible_calendars, get_user_project_queryset
 
 User = get_user_model()
 
@@ -304,7 +304,7 @@ class ChatViewSet(viewsets.ModelViewSet):
 
         return super().create(request, *args, **kwargs)
 
-# Only for muting
+# Only for mutingOru
 class ChatUserViewSet(viewsets.ModelViewSet):
     queryset = ChatUser.objects.all()
     serializer_class = ChatUserSerializer
@@ -330,7 +330,7 @@ class MessageViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         serializer.save(edited=timezone.now())
 
-# Done
+# Access via Org
 class SongViewSet(viewsets.ModelViewSet):
     queryset = Song.objects.all()
     serializer_class = SongSerializer
@@ -359,15 +359,43 @@ class SongViewSet(viewsets.ModelViewSet):
 
 # Acces via Project
 class TimetableViewSet(viewsets.ModelViewSet):
-    queryset = Timetable.objects.all()
+    queryset = Timetable.objects.all().order_by('id')  # Add default ordering
     serializer_class = TimetableSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['event']
     search_fields = ['name']
-    permission_classes = [IsAuthenticated, IsProjectMember]
-
+    permission_classes = [IsAuthenticated]  # We'll handle permission in get_queryset
+    
     def get_queryset(self):
-        return get_user_project_queryset(self.request.user, self.queryset, project_field='event__project')
+        user = self.request.user
+        
+        # Staff can see all timetables
+        if user.is_staff:
+            return Timetable.objects.all().order_by('id')
+        
+        # Get all events the user can access
+        # 1. Through project membership
+        user_projects = Project.objects.filter(userproject__user=user)
+        project_events = Event.objects.filter(project__in=user_projects)
+        
+        # 2. Through organization membership
+        user_orgs = UserOrganisation.objects.filter(user=user).values_list('organisation_id', flat=True)
+        org_calendars = Calendar.objects.filter(organisation_id__in=user_orgs)
+        org_events = Event.objects.filter(calendar__in=org_calendars)
+        
+        # Combine all accessible events
+        accessible_events = (project_events | org_events).distinct()
+        
+        # Return timetables for those events
+        return Timetable.objects.filter(event__in=accessible_events).order_by('id')
+    
+    def check_permissions(self, request):
+        # Always allow authenticated users to list and retrieve
+        if self.action in ['list', 'retrieve'] and request.user.is_authenticated:
+            return True
+        
+        # For other actions, use the default permission checks
+        return super().check_permissions(request)
 
 # Acces via Project
 class SetlistViewSet(viewsets.ModelViewSet):
