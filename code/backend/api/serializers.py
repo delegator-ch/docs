@@ -119,7 +119,6 @@ class MessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Message
         fields = ['id', 'user', 'chat', 'content', 'sent', 'edited', 'user_details', 'chat_details']
-        read_only_fields = ['user', 'sent', 'edited']  # Make user field read-only
 
 class SongSerializer(serializers.ModelSerializer):
     organisation_details = OrganisationSerializer(source='organisation', read_only=True)
@@ -171,7 +170,10 @@ class TaskSerializer(serializers.ModelSerializer):
             'dependent_task_details'
         ]
         read_only_fields = ['created', 'updated']
-    
+        extra_kwargs = {
+            'user': {'required': False}  # Make user optional in the serializer
+        }
+        
     def get_dependent_task_details(self, obj):
         if obj.dependent_on_task:
             return {

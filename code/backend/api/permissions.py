@@ -179,35 +179,35 @@ class IsProjectMember(BasePermission):
         
     def has_permission(self, request, view):
         if request.method != 'POST':
-            return True  # Allow read or other actions, restrict in `has_object_permission`
+            return True
+
+        user = request.user
+
+        project_id = request.data.get('project')
+        if project_id:
+            try:
+                if UserProject.objects.filter(user=user, project_id=project_id).exists():
+                    return True
+                project = Project.objects.get(id=project_id)
+                if project.organisation and UserOrganisation.objects.filter(user=user, organisation=project.organisation).exists():
+                    return True
+            except Project.DoesNotExist:
+                pass
 
         event_id = request.data.get('event')
-        if not event_id:
-            return False
+        if event_id:
+            try:
+                event = Event.objects.get(id=event_id)
+                projects = Project.objects.filter(event=event)
+                if UserProject.objects.filter(user=user, project__in=projects).exists():
+                    return True
+                if event.calendar and hasattr(event.calendar, 'organisation'):
+                    return UserOrganisation.objects.filter(user=user, organisation=event.calendar.organisation).exists()
+            except Event.DoesNotExist:
+                pass
 
-        try:
-            # Get the event without using select_related
-            event = Event.objects.get(id=event_id)
-            
-            # Check direct project access
-            related_projects = Project.objects.filter(event=event)
-            if UserProject.objects.filter(
-                user=request.user,
-                project__in=related_projects
-            ).exists():
-                return True
-                
-            # Check organization access via event's calendar
-            if event.calendar and hasattr(event.calendar, 'organisation'):
-                org = event.calendar.organisation
-                return UserOrganisation.objects.filter(
-                    user=request.user,
-                    organisation=org
-                ).exists()
-                
-            return False
-        except Event.DoesNotExist:
-            return False
+        return False
+
 
 class HasProjectAccess(BasePermission):
     """

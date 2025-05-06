@@ -110,8 +110,20 @@ def get_user_project_queryset(user, base_queryset, project_field='project'):
 def check_project_access(user, project):
     if user.is_staff:
         return
-    if not UserProject.objects.filter(user=user, project=project).exists():
-        raise PermissionDenied("You don't have access to this project.")
+    
+    # Check direct project access
+    if UserProject.objects.filter(user=user, project=project).exists():
+        return
+    
+    # Also check organization access
+    if hasattr(project, 'organisation') and project.organisation:
+        if UserOrganisation.objects.filter(
+            user=user, 
+            organisation=project.organisation
+        ).exists():
+            return
+    
+    raise PermissionDenied("You don't have access to this project.")
 
 def get_user_accessible_calendars(user):
     """

@@ -32,7 +32,7 @@ from .serializers import (
 )
 
 from .permissions import CanAccessCalendar, CanAccessChat, HasSongPermission, IsMessageOwnerOrReadOnly, IsProjectMember, IsPartOfOrganisationAndStaff, HasProjectAccess
-from .utils import get_user_accessible_calendars, get_user_accessible_chats, user_has_chat_access, get_user_project_events, get_user_accessible_calendars, get_user_project_queryset
+from .utils import get_user_accessible_calendars, get_user_accessible_chats, user_has_chat_access, get_user_project_events, get_user_accessible_calendars, get_user_project_queryset, check_project_access
 
 User = get_user_model()
 
@@ -465,7 +465,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['user', 'project', 'status', 'deadline', 'event']
+    filterset_fields = ['project', 'status', 'deadline', 'event']
     search_fields = ['title', 'content']
     permission_classes = [IsAuthenticated, IsProjectMember]
 
@@ -477,7 +477,7 @@ class TaskViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         check_project_access(self.request.user, serializer.validated_data.get('project'))
-        serializer.save()
+        serializer.save(user=self.request.user)
 
 # Access via Project
 class RecordingViewSet(viewsets.ModelViewSet):
