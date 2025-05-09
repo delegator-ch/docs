@@ -1,4 +1,4 @@
-import 'package:delegator/lib/pages/page-main.dart';
+import 'package:delegator/pages/page-main.dart';
 import 'package:flutter/material.dart';
 
 void main() {
