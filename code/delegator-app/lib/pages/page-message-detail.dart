@@ -77,20 +77,29 @@ class _PageMessageDetailState extends State<PageMessageDetail> {
     final content = _messageController.text.trim();
     _messageController.clear();
 
-    // Show sending indicator
+    // Create a temporary message ID that won't conflict with real ones
+    final tempId = -DateTime.now().millisecondsSinceEpoch;
+
+    // Add a temporary optimistic message
     setState(() {
-      // Add a temporary optimistic message
       _messages.add(
         Message(
-          id: -1, // Temporary ID
-          userId: -1, // We don't know our user ID yet
+          id: tempId, // Temporary ID
+          userId: -1, // We don't know user ID yet
           chatId: widget.chat.id,
           content: content,
           sent: DateTime.now().toIso8601String(),
           userDetails: {
-            'username': 'test_user_2',
-          }, // Assuming this is our username
-          chatDetails: {'id': widget.chat.id, 'name': widget.chat.name},
+            'username': 'test_user_2', // Assuming this is our username
+            'first_name': '', // Add first name if known
+            'last_name': '', // Add last name if known
+            'created': DateTime.now().toIso8601String(),
+          },
+          chatDetails: {
+            'id': widget.chat.id,
+            'name': widget.chat.name,
+            'organisation_details': {'name': widget.chat.organisationName},
+          },
         ),
       );
     });
@@ -113,7 +122,7 @@ class _PageMessageDetailState extends State<PageMessageDetail> {
     } catch (e) {
       // Remove the optimistic message
       setState(() {
-        _messages.removeWhere((msg) => msg.id == -1);
+        _messages.removeWhere((msg) => msg.id == tempId);
       });
 
       // Show error snackbar
@@ -154,11 +163,11 @@ class _PageMessageDetailState extends State<PageMessageDetail> {
   }
 
   Widget _buildMessageList() {
-    if (_isLoading) {
+    if (_isLoading && _messages.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_error != null) {
+    if (_error != null && _messages.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -184,6 +193,11 @@ class _PageMessageDetailState extends State<PageMessageDetail> {
             Icon(Icons.message, size: 80, color: Colors.grey),
             SizedBox(height: 16),
             Text('No messages in this chat', style: TextStyle(fontSize: 18)),
+            SizedBox(height: 8),
+            Text(
+              'Send a message to start the conversation',
+              style: TextStyle(color: Colors.grey),
+            ),
           ],
         ),
       );
@@ -206,20 +220,22 @@ class _PageMessageDetailState extends State<PageMessageDetail> {
     messagesByDate.forEach((date, messages) {
       // Add date header
       widgets.add(
-        Center(
-          child: Container(
-            margin: const EdgeInsets.symmetric(vertical: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.grey[200],
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Text(
-              date,
-              style: TextStyle(
-                color: Colors.grey[800],
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                date,
+                style: TextStyle(
+                  color: Colors.grey[800],
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ),
@@ -232,10 +248,33 @@ class _PageMessageDetailState extends State<PageMessageDetail> {
       }
     });
 
-    return ListView(
-      controller: _scrollController,
-      padding: const EdgeInsets.all(16),
-      children: widgets,
+    // Add a loading indicator at the top if refreshing
+    if (_isLoading) {
+      widgets.insert(
+        0,
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 8.0),
+          child: Center(
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Add some bottom padding to ensure the last message is visible above the input
+    widgets.add(const SizedBox(height: 8));
+
+    return RefreshIndicator(
+      onRefresh: _fetchMessages,
+      child: ListView(
+        controller: _scrollController,
+        padding: const EdgeInsets.all(16),
+        children: widgets,
+      ),
     );
   }
 
@@ -243,45 +282,143 @@ class _PageMessageDetailState extends State<PageMessageDetail> {
     final isMe =
         message.username == "test_user_2"; // Replace with actual user check
 
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isMe ? Colors.blue[100] : Colors.grey[200],
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (!isMe)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text(
-                  message.username,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[800],
-                    fontSize: 13,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        mainAxisAlignment:
+            isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Profile picture - only show for other users
+          if (!isMe) _buildProfileImage(message),
+
+          const SizedBox(width: 8),
+
+          // Message content
+          Flexible(
+            child: Column(
+              crossAxisAlignment:
+                  isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                // Display name - always show, but style differently
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4, left: 4, right: 4),
+                  child: Text(
+                    message.displayName,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: isMe ? Colors.blue[800] : Colors.grey[800],
+                      fontSize: 13,
+                    ),
                   ),
                 ),
-              ),
-            Text(message.content),
-            Align(
-              alignment: Alignment.bottomRight,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  _formatTime(message.sent),
-                  style: TextStyle(color: Colors.grey[600], fontSize: 10),
+
+                // Message bubble
+                Container(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.7,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isMe ? Colors.blue[100] : Colors.grey[200],
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(message.content),
+                      const SizedBox(height: 4),
+                      Text(
+                        _formatTime(message.sent),
+                        style: TextStyle(color: Colors.grey[600], fontSize: 10),
+                        textAlign: TextAlign.right,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
+
+          // Profile picture - only show for current user
+          if (isMe)
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: _buildProfileImage(message),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileImage(Message message) {
+    // Check if there's a profile image URL
+    final String? profileImageUrl = message.profileImageUrl;
+
+    if (profileImageUrl != null) {
+      // Use NetworkImage with error handling
+      return ClipOval(
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: Image.network(
+            profileImageUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              // If image loading fails, fall back to letter avatar
+              return _buildLetterAvatar(message);
+            },
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Container(
+                width: 40,
+                height: 40,
+                color: Colors.grey[300],
+                child: Center(
+                  child: CircularProgressIndicator(
+                    value:
+                        loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                loadingProgress.expectedTotalBytes!
+                            : null,
+                    strokeWidth: 2,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    } else {
+      // Otherwise generate an avatar with the first letter
+      return _buildLetterAvatar(message);
+    }
+  }
+
+  Widget _buildLetterAvatar(Message message) {
+    final String displayName = message.displayName;
+    final String letter =
+        displayName.isNotEmpty ? displayName[0].toUpperCase() : '?';
+
+    // Generate a consistent color based on the username
+    final int colorValue = message.username.codeUnits.fold(
+      0,
+      (prev, element) => prev + element,
+    );
+    final color = Colors.primaries[colorValue % Colors.primaries.length];
+
+    return CircleAvatar(
+      backgroundColor: color,
+      radius: 20,
+      child: Text(
+        letter,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
         ),
       ),
     );

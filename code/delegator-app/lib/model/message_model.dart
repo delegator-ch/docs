@@ -34,4 +34,26 @@ class Message {
 
   String get username => userDetails['username'] as String;
   String get userCreated => userDetails['created'] as String;
+
+  // Get profile image URL if available, otherwise return null
+  String? get profileImageUrl {
+    if (userDetails.containsKey('profile_image') &&
+        userDetails['profile_image'] != null &&
+        userDetails['profile_image'].toString().isNotEmpty) {
+      return userDetails['profile_image'] as String;
+    }
+    return null;
+  }
+
+  // Get display name (first name + last name if available, otherwise username)
+  String get displayName {
+    final firstName = userDetails['first_name'] as String? ?? '';
+    final lastName = userDetails['last_name'] as String? ?? '';
+
+    if (firstName.isNotEmpty || lastName.isNotEmpty) {
+      return '${firstName.trim()} ${lastName.trim()}'.trim();
+    }
+
+    return username;
+  }
 }
