@@ -1,8 +1,6 @@
-// Update lib/pages/page-chat-detail.dart
+// First, let's create a new file: lib/pages/page-chat-detail.dart
 import 'package:flutter/material.dart';
 import '../model/chat_model.dart';
-import '../model/message_model.dart';
-import '../service/message_service.dart';
 
 class PageChatDetail extends StatefulWidget {
   final Chat chat;
@@ -16,10 +14,8 @@ class PageChatDetail extends StatefulWidget {
 class _PageChatDetailState extends State<PageChatDetail> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final MessageService _messageService = MessageService();
-  List<Message> _messages = [];
+  final List<ChatMessage> _messages = [];
   bool _isLoading = false;
-  String? _error;
 
   @override
   void initState() {
@@ -28,73 +24,43 @@ class _PageChatDetailState extends State<PageChatDetail> {
   }
 
   Future<void> _loadMessages() async {
-    try {
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
+    setState(() {
+      _isLoading = true;
+    });
 
-      // We'll try to get actual messages from the API
-      // If it fails, we'll fall back to mock data
-      try {
-        final messages = await _messageService.fetchMessages(widget.chat.id);
-        setState(() {
-          _messages = messages;
-          _isLoading = false;
-        });
-      } catch (e) {
-        print('Error loading messages from API: $e');
-        // Fall back to mock data
-        await Future.delayed(const Duration(milliseconds: 800));
-        setState(() {
-          // Mock data for demonstration
-          _messages = [
-            Message(
-              id: 1,
-              chatId: widget.chat.id,
-              content: "Hello there! How can I help you today?",
-              created:
-                  DateTime.now()
-                      .subtract(const Duration(minutes: 30))
-                      .toIso8601String(),
-              isFromUser: false,
-            ),
-            Message(
-              id: 2,
-              chatId: widget.chat.id,
-              content: "I need some information about the project status.",
-              created:
-                  DateTime.now()
-                      .subtract(const Duration(minutes: 25))
-                      .toIso8601String(),
-              isFromUser: true,
-            ),
-            Message(
-              id: 3,
-              chatId: widget.chat.id,
-              content:
-                  "Sure, the project is currently in the development phase. We expect to complete it by next week.",
-              created:
-                  DateTime.now()
-                      .subtract(const Duration(minutes: 20))
-                      .toIso8601String(),
-              isFromUser: false,
-            ),
-          ];
-          _isLoading = false;
-        });
-      }
+    // TODO: Implement actual API call to fetch messages
+    // For now, we'll add some dummy messages
+    await Future.delayed(const Duration(milliseconds: 800));
 
-      // Scroll to bottom after messages load
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollToBottom();
-      });
-    } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
-    }
+    setState(() {
+      _messages.addAll([
+        ChatMessage(
+          id: 1,
+          content: "Hello there! How can I help you today?",
+          timestamp: DateTime.now().subtract(const Duration(minutes: 30)),
+          isFromUser: false,
+        ),
+        ChatMessage(
+          id: 2,
+          content: "I need some information about the project status.",
+          timestamp: DateTime.now().subtract(const Duration(minutes: 25)),
+          isFromUser: true,
+        ),
+        ChatMessage(
+          id: 3,
+          content:
+              "Sure, the project is currently in the development phase. We expect to complete it by next week.",
+          timestamp: DateTime.now().subtract(const Duration(minutes: 20)),
+          isFromUser: false,
+        ),
+      ]);
+      _isLoading = false;
+    });
+
+    // Scroll to bottom after messages load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToBottom();
+    });
   }
 
   void _scrollToBottom() {
@@ -107,14 +73,13 @@ class _PageChatDetailState extends State<PageChatDetail> {
     }
   }
 
-  Future<void> _sendMessage() async {
+  void _sendMessage() {
     if (_messageController.text.trim().isEmpty) return;
 
-    final newMessage = Message(
-      id: _messages.isEmpty ? 1 : _messages.last.id + 1,
-      chatId: widget.chat.id,
+    final newMessage = ChatMessage(
+      id: _messages.length + 1,
       content: _messageController.text,
-      created: DateTime.now().toIso8601String(),
+      timestamp: DateTime.now(),
       isFromUser: true,
     );
 
@@ -126,18 +91,13 @@ class _PageChatDetailState extends State<PageChatDetail> {
     // Scroll to bottom after sending message
     _scrollToBottom();
 
-    try {
-      // Try to send the message via API
-      await _messageService.sendMessage(widget.chat.id, newMessage.content);
-      // If successful, server might respond with a message - we'd fetch it here
-      // For now, we'll simulate a response
-      await Future.delayed(const Duration(seconds: 1));
-
-      final responseMessage = Message(
-        id: _messages.isEmpty ? 1 : _messages.last.id + 1,
-        chatId: widget.chat.id,
+    // TODO: Implement actual API call to send message
+    // Simulate response after a short delay
+    Future.delayed(const Duration(seconds: 1), () {
+      final responseMessage = ChatMessage(
+        id: _messages.length + 1,
         content: "Thanks for your message. I'll look into it.",
-        created: DateTime.now().toIso8601String(),
+        timestamp: DateTime.now(),
         isFromUser: false,
       );
 
@@ -146,15 +106,7 @@ class _PageChatDetailState extends State<PageChatDetail> {
       });
 
       _scrollToBottom();
-    } catch (e) {
-      // Show error if sending fails
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to send message: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+    });
   }
 
   @override
@@ -171,39 +123,10 @@ class _PageChatDetailState extends State<PageChatDetail> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.info_outline),
-            onPressed: () {
-              // TODO: Show chat info
-            },
-          ),
-        ],
+        elevation: 1,
       ),
       body: Column(
         children: [
-          if (_error != null)
-            Container(
-              padding: const EdgeInsets.all(8),
-              color: Colors.red.shade100,
-              width: double.infinity,
-              child: Row(
-                children: [
-                  const Icon(Icons.error, color: Colors.red),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Error: $_error',
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.refresh, color: Colors.red),
-                    onPressed: _loadMessages,
-                  ),
-                ],
-              ),
-            ),
           Expanded(
             child:
                 _isLoading
@@ -225,9 +148,7 @@ class _PageChatDetailState extends State<PageChatDetail> {
     );
   }
 
-  Widget _buildMessageBubble(Message message) {
-    final DateTime messageTime = DateTime.parse(message.created);
-
+  Widget _buildMessageBubble(ChatMessage message) {
     return Align(
       alignment:
           message.isFromUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -252,7 +173,7 @@ class _PageChatDetailState extends State<PageChatDetail> {
             ),
             const SizedBox(height: 4),
             Text(
-              _formatTime(messageTime),
+              _formatTime(message.timestamp),
               style: TextStyle(
                 fontSize: 10,
                 color: message.isFromUser ? Colors.white70 : Colors.black54,
@@ -284,11 +205,6 @@ class _PageChatDetailState extends State<PageChatDetail> {
             icon: const Icon(Icons.attach_file),
             onPressed: () {
               // TODO: Implement attachment functionality
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Attachment feature coming soon!'),
-                ),
-              );
             },
           ),
           Expanded(
@@ -301,7 +217,6 @@ class _PageChatDetailState extends State<PageChatDetail> {
               textCapitalization: TextCapitalization.sentences,
               minLines: 1,
               maxLines: 5,
-              onSubmitted: (_) => _sendMessage(),
             ),
           ),
           IconButton(
@@ -323,4 +238,19 @@ class _PageChatDetailState extends State<PageChatDetail> {
     _scrollController.dispose();
     super.dispose();
   }
+}
+
+// Add this class to represent a chat message
+class ChatMessage {
+  final int id;
+  final String content;
+  final DateTime timestamp;
+  final bool isFromUser;
+
+  ChatMessage({
+    required this.id,
+    required this.content,
+    required this.timestamp,
+    required this.isFromUser,
+  });
 }

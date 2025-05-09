@@ -1,36 +1,37 @@
-// Create a new file: lib/model/message_model.dart
 class Message {
   final int id;
+  final int userId;
   final int chatId;
   final String content;
-  final String created;
-  final bool isFromUser;
+  final String sent;
+  final String? edited;
+  final Map<String, dynamic> userDetails;
+  final Map<String, dynamic> chatDetails;
 
   Message({
     required this.id,
+    required this.userId,
     required this.chatId,
     required this.content,
-    required this.created,
-    required this.isFromUser,
+    required this.sent,
+    this.edited,
+    required this.userDetails,
+    required this.chatDetails,
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
     return Message(
       id: json['id'],
-      chatId: json['chat_id'],
+      userId: json['user'],
+      chatId: json['chat'],
       content: json['content'],
-      created: json['created'],
-      isFromUser: json['is_from_user'] ?? false,
+      sent: json['sent'],
+      edited: json['edited'],
+      userDetails: json['user_details'],
+      chatDetails: json['chat_details'],
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'chat_id': chatId,
-      'content': content,
-      'created': created,
-      'is_from_user': isFromUser,
-    };
-  }
+  String get username => userDetails['username'] as String;
+  String get userCreated => userDetails['created'] as String;
 }

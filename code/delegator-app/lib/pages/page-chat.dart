@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../model/chat_model.dart';
 import '../service/chat_service.dart';
 import '../service/token_manager.dart';
-import 'page-chat-detail.dart';
+import 'page-message-detail.dart'; // Import the message detail page
 
 class PageChat extends StatefulWidget {
   const PageChat({super.key});
@@ -77,96 +77,125 @@ class _PageChatState extends State<PageChat> {
     return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute}';
   }
 
+  void _navigateToMessageDetail(Chat chat) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => PageMessageDetail(chat: chat)),
+    ).then((_) {
+      // Refresh chats when returning from message detail
+      _fetchChats();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_showTokenInput) {
       return _buildTokenInput();
     }
 
-    return _isLoading
-        ? const Center(child: CircularProgressIndicator())
-        : _error != null
-        ? Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 60, color: Colors.red),
-              const SizedBox(height: 16),
-              Text('Error: $_error'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _fetchChats,
-                child: const Text('Try Again'),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Chats'),
+        actions: [
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _fetchChats),
+        ],
+      ),
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _error != null
+              ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      size: 60,
+                      color: Colors.red,
+                    ),
+                    const SizedBox(height: 16),
+                    Text('Error: $_error'),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _fetchChats,
+                      child: const Text('Try Again'),
+                    ),
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _showTokenInput = true;
+                        });
+                      },
+                      child: const Text('Enter New Token'),
+                    ),
+                  ],
+                ),
+              )
+              : _chats.isEmpty
+              ? const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.chat_bubble_outline,
+                      size: 80,
+                      color: Colors.grey,
+                    ),
+                    SizedBox(height: 16),
+                    Text('No chats available', style: TextStyle(fontSize: 18)),
+                  ],
+                ),
+              )
+              : RefreshIndicator(
+                onRefresh: _fetchChats,
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _chats.length,
+                  itemBuilder: (context, index) {
+                    final chat = _chats[index];
+                    return _buildChatCard(chat);
+                  },
+                ),
               ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    _showTokenInput = true;
-                  });
-                },
-                child: const Text('Enter New Token'),
-              ),
-            ],
-          ),
-        )
-        : _chats.isEmpty
-        ? const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.chat_bubble_outline, size: 80, color: Colors.grey),
-              SizedBox(height: 16),
-              Text('No chats available', style: TextStyle(fontSize: 18)),
-            ],
-          ),
-        )
-        : RefreshIndicator(
-          onRefresh: _fetchChats,
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: _chats.length,
-            itemBuilder: (context, index) {
-              final chat = _chats[index];
-              return _buildChatCard(chat);
-            },
-          ),
-        );
+    );
   }
 
   Widget _buildTokenInput() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Enter JWT Token',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _tokenController,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                labelText: 'JWT Token',
-                hintText: 'Paste your JWT token here',
+    return Scaffold(
+      appBar: AppBar(title: const Text('Login')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Enter JWT Token',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
-              maxLines: 3,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _setTokenAndFetch,
-              child: const Text('Submit'),
-            ),
-          ],
+              const SizedBox(height: 16),
+              TextField(
+                controller: _tokenController,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  labelText: 'JWT Token',
+                  hintText: 'Paste your JWT token here',
+                ),
+                maxLines: 3,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _setTokenAndFetch,
+                child: const Text('Submit'),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // Modify the _buildChatCard method in page-chat.dart
   Widget _buildChatCard(Chat chat) {
     return Card(
       elevation: 2,
@@ -174,13 +203,7 @@ class _PageChatState extends State<PageChat> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          // Navigate to chat detail page
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => PageChatDetail(chat: chat)),
-          );
-        },
+        onTap: () => _navigateToMessageDetail(chat),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
