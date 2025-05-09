@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../model/chat_model.dart';
 import '../service/chat_service.dart';
 import '../service/token_manager.dart';
+import 'page-chat-detail.dart';
 
 class PageChat extends StatefulWidget {
   const PageChat({super.key});
@@ -165,6 +166,7 @@ class _PageChatState extends State<PageChat> {
     );
   }
 
+  // Modify the _buildChatCard method in page-chat.dart
   Widget _buildChatCard(Chat chat) {
     return Card(
       elevation: 2,
@@ -173,7 +175,11 @@ class _PageChatState extends State<PageChat> {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
-          print('Selected chat: ${chat.id}');
+          // Navigate to chat detail page
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => PageChatDetail(chat: chat)),
+          );
         },
         child: Padding(
           padding: const EdgeInsets.all(16),
