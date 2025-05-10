@@ -36,6 +36,32 @@ class User(AbstractUser):
     def __str__(self):
         return self.username
 
+       def get_ical_url(self, request=None):
+        """Get the iCalendar URL for all this user's events"""
+        # Get or create a subscription for all user's calendars
+        from .calendar_token import CalendarSubscription
+        
+        subscription = CalendarSubscription.objects.filter(
+            user=self, 
+            calendar=None,
+            is_active=True
+        ).first()
+        
+        if not subscription:
+            subscription = CalendarSubscription.objects.create(
+                user=self,
+                calendar=None,
+                name="All My Events"
+            )
+        
+        url = reverse('user-ical', kwargs={'token': subscription.token})
+        if request:
+            url = request.build_absolute_uri(url)
+        elif hasattr(settings, 'SITE_URL'):
+            url = f"{settings.SITE_URL}{url}"
+        
+        return url
+
 #not for every user
 class Organisation(models.Model):
     name = models.CharField(max_length=255)
@@ -76,6 +102,45 @@ class Calendar(models.Model):
     
     def __str__(self):
         return f"Calendar for {self.organisation}"
+
+        def get_ical_url(self, request=None):
+        """Get the public iCalendar URL for this calendar"""
+        # Generate a subscription token if none exists
+        subscription = self.get_or_create_subscription()
+        
+        url = reverse('calendar-ical', kwargs={'token': subscription.token})
+        if request:
+            url = request.build_absolute_uri(url)
+        elif hasattr(settings, 'SITE_URL'):
+            url = f"{settings.SITE_URL}{url}"
+        
+        return url
+    
+    def get_or_create_subscription(self, user=None):
+        """Get or create a subscription token for this calendar"""
+        from .calendar_token import CalendarSubscription
+        
+        # If user is specified, get a user-specific subscription
+        if user:
+            subscription, created = CalendarSubscription.objects.get_or_create(
+                user=user,
+                calendar=self,
+                defaults={'name': f"{self.organisation.name} Calendar"}
+            )
+            return subscription
+        
+        # Otherwise, use the default subscription (first one found)
+        subscription = self.subscription_tokens.filter(is_active=True).first()
+        
+        if not subscription and hasattr(self, 'user') and self.user:
+            # Create a subscription for the calendar owner
+            subscription = CalendarSubscription.objects.create(
+                user=self.user,
+                calendar=self,
+                name=f"{self.organisation.name} Calendar"
+            )
+        
+        return subscription
 
 # Only access (CRUD) on calender you have access to
 class Event(models.Model):

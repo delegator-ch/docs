@@ -14,6 +14,14 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 
+
+# Add these imports at the top of your urls.py file
+from .ical_views import (
+    calendar_ical_feed, user_ical_feed,
+    create_calendar_subscription, create_user_subscription,
+    list_subscriptions, revoke_subscription
+)
+
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
 router.register(r'organisations', OrganisationViewSet)
@@ -55,4 +63,17 @@ urlpatterns += [
 
 urlpatterns += [
     path('upgrade-to-premium/', upgrade_to_premium, name='upgrade_to_premium'),
+]
+
+# Add these to your urlpatterns list
+urlpatterns += [
+    # Public iCalendar feeds (accessible with token)
+    path('ical/calendar/<str:token>/', calendar_ical_feed, name='calendar-ical'),
+    path('ical/user/<str:token>/', user_ical_feed, name='user-ical'),
+    
+    # Authenticated endpoints to manage subscriptions
+    path('subscriptions/calendar/<int:calendar_id>/', create_calendar_subscription, name='create-calendar-subscription'),
+    path('subscriptions/user/', create_user_subscription, name='create-user-subscription'),
+    path('subscriptions/', list_subscriptions, name='list-subscriptions'),
+    path('subscriptions/<int:subscription_id>/revoke/', revoke_subscription, name='revoke-subscription'),
 ]

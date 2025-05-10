@@ -5,6 +5,9 @@ from .models import (
     ChatUser, Message, Song, Timetable, Setlist, History, Status, Task, Recording, UserProject, ChatAccessView
 )
 
+# Add this serializer to your serializers.py file
+from .calendar_token import CalendarSubscription
+
 User = get_user_model()
 
 
@@ -240,3 +243,58 @@ class ChatAccessSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChatAccessView
         fields = ['chat_id', 'user_id', 'username', 'access_type']
+
+class CalendarSubscriptionSerializer(serializers.ModelSerializer):
+    subscription_url = serializers.SerializerMethodField()
+    calendar_name = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = CalendarSubscription
+        fields = ['id', 'user', 'calendar', 'token', 'name', 'created', 
+                 'last_used', 'is_active', 'subscription_url', 'calendar_name']
+        read_only_fields = ['token', 'created', 'last_used']
+    
+    def get_subscription_url(self, obj):
+        request = self.context.get('request')
+        return obj.get_subscription_url(request)
+    
+    def get_calendar_name(self, obj):
+        if obj.calendar:
+            return obj.calendar.organisation.name
+        return "All Calendars"
+
+
+# Also update your CalendarSerializer to include the iCal URL
+class CalendarSerializer(serializers.ModelSerializer):
+    organisation_details = OrganisationSerializer(source='organisation', read_only=True)
+    ical_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Calendar
+        fields = ['id', 'organisation', 'organisation_details', 'ical_url']
+    
+    def get_ical_url(self, obj):
+        request = self.context.get('request')
+        return obj.get_ical_url(request)
+
+
+# Update your UserSerializer to include an iCal URL for all events
+class UserDetailSerializer(serializers.ModelSerializer):
+    organisations = serializers.SerializerMethodField()
+    tasks = TaskSerializer(source='task_set', many=True, read_only=True)
+    messages = MessageSerializer(source='message_set', many=True, read_only=True)
+    ical_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'created',
+                 'organisations', 'tasks', 'messages', 'ical_url']
+        read_only_fields = ['created']
+    
+    def get_organisations(self, obj):
+        user_orgs = UserOrganisation.objects.filter(user=obj)
+        return UserOrganisationSerializer(user_orgs, many=True).data
+        
+    def get_ical_url(self, obj):
+        request = self.context.get('request')
+        return obj.get_ical_url(request)
