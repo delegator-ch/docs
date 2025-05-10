@@ -3,6 +3,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+from django.urls import reverse
 
 # So the song nr can be auto generated
 from django.db.models.signals import pre_save
@@ -33,11 +34,60 @@ class User(AbstractUser):
         verbose_name='user permissions',
     )
     is_premium = models.BooleanField(default=False)
+
     def __str__(self):
         return self.username
 
-       def get_ical_url(self, request=None):
-        """Get the iCalendar URL for all this user's events"""
+    def get_ical_url(self, request=None):
+        # Get the iCalendar URL for all this user's events
+        # Get or create a subscription for all user's calendars
+        from .calendar_token import CalendarSubscription
+        from django.urls import reverse  # Missing import
+        
+        subscription = CalendarSubscription.objects.filter(
+            user=self, 
+            calendar=None,
+            is_active=True
+        ).first()
+        
+        if not subscription:
+            subscription = CalendarSubscription.objects.create(
+                user=self,
+                calendar=None,
+                name="All My Events"
+            )
+        
+        url = reverse('user-ical', kwargs={'token': subscription.token})
+        if request:
+            url = request.build_absolute_uri(url)
+        elif hasattr(settings, 'SITE_URL'):
+            url = f"{settings.SITE_URL}{url}"
+        
+        return url
+    created = models.DateTimeField(auto_now_add=True)
+    
+    # Add related_name arguments to avoid clashes with auth.User
+    groups = models.ManyToManyField(
+        'auth.Group',
+        related_name='api_user_groups',
+        blank=True,
+        help_text='The groups this user belongs to.',
+        verbose_name='groups',
+    )
+    user_permissions = models.ManyToManyField(
+        'auth.Permission',
+        related_name='api_user_permissions',
+        blank=True,
+        help_text='Specific permissions for this user.',
+        verbose_name='user permissions',
+    )
+    is_premium = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.username
+
+    def get_ical_url(self, request=None):
+        # Get the iCalendar URL for all this user's events
         # Get or create a subscription for all user's calendars
         from .calendar_token import CalendarSubscription
         
@@ -77,9 +127,6 @@ class Role(models.Model):
     
     def __str__(self):
         return self.name
-    
-    def __str__(self):
-        return self.name
 
 #only for admins
 class UserOrganisation(models.Model):
@@ -103,8 +150,8 @@ class Calendar(models.Model):
     def __str__(self):
         return f"Calendar for {self.organisation}"
 
-        def get_ical_url(self, request=None):
-        """Get the public iCalendar URL for this calendar"""
+    def get_ical_url(self, request=None):
+        # Get the public iCalendar URL for this calendar 
         # Generate a subscription token if none exists
         subscription = self.get_or_create_subscription()
         
@@ -117,7 +164,7 @@ class Calendar(models.Model):
         return url
     
     def get_or_create_subscription(self, user=None):
-        """Get or create a subscription token for this calendar"""
+        # Get or create a subscription token for this calendar
         from .calendar_token import CalendarSubscription
         
         # If user is specified, get a user-specific subscription

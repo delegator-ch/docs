@@ -6,7 +6,7 @@ from rest_framework.permissions import AllowAny
 
 from .models import Calendar, User
 from .calendar_token import CalendarSubscription
-from .ical_utils import generate_ical_for_calendar, generate_ical_for_user
+from .ical_utils import generate_ical_for_user, generate_ical_for_calendar
 
 
 @api_view(['GET'])
