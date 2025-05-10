@@ -2,75 +2,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'token_manager.dart';
-
-class Event {
-  final int id;
-  final int calendarId;
-  final String start;
-  final String end;
-  final bool isGig;
-  final String organisationName;
-
-  Event({
-    required this.id,
-    required this.calendarId,
-    required this.start,
-    required this.end,
-    required this.isGig,
-    required this.organisationName,
-  });
-
-  factory Event.fromJson(Map<String, dynamic> json) {
-    return Event(
-      id: json['id'],
-      calendarId: json['calendar'],
-      start: json['start'],
-      end: json['end'],
-      isGig: json['is_gig'],
-      organisationName:
-          json['calendar_details']['organisation_details']['name'],
-    );
-  }
-}
-
-class Project {
-  final int id;
-  final int? eventId;
-  final String? deadline;
-  final int priority;
-  final int organisationId;
-  final String? organisationName;
-
-  Project({
-    required this.id,
-    this.eventId,
-    this.deadline,
-    required this.priority,
-    required this.organisationId,
-    this.organisationName,
-  });
-
-  factory Project.fromJson(Map<String, dynamic> json) {
-    // Extract organisation name from event_details if available
-    String? orgName;
-    if (json['event_details'] != null) {
-      orgName =
-          json['event_details']['calendar_details']['organisation_details']['name'];
-    }
-
-    return Project(
-      id: json['id'],
-      eventId: json['event'],
-      deadline: json['deadline'],
-      priority: json['priority'],
-      organisationId: json['organisation'],
-      organisationName: orgName,
-    );
-  }
-}
+import '../model/event_model.dart';
 
 class EventService {
-  static const String baseUrl = 'http://127.0.0.1';
+  static const String baseUrl = 'http://10.0.2.2'; // For Android emulator
+  // If testing on real device or iOS simulator, you might need to adjust this URL
+  // For iOS simulator: http://127.0.0.1
+  // For real device: your actual server IP
 
   // Get headers with authentication token
   Map<String, String> _getAuthHeaders() {
@@ -81,123 +19,101 @@ class EventService {
     };
   }
 
-  // Fetch events
+  // Fetch events with authentication
   Future<List<Event>> fetchEvents() async {
-    try {
-      final headers = _getAuthHeaders();
-      final response = await http.get(
-        Uri.parse('$baseUrl/events/'),
-        headers: headers,
-      );
+    final headers = _getAuthHeaders();
+    final response = await http.get(
+      Uri.parse('$baseUrl/events/'),
+      headers: headers,
+    );
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        List<dynamic> results = data['results'];
-        return results.map((json) => Event.fromJson(json)).toList();
-      } else if (response.statusCode == 401) {
-        TokenManager.clearToken();
-        throw Exception('Authentication failed. Please login again.');
-      } else {
-        throw Exception('Failed to load events: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('Error fetching events: $e');
-      // Return mock data if API call fails
-      return _getMockEvents();
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = json.decode(response.body);
+      List<dynamic> results = data['results'];
+      return results.map((json) => Event.fromJson(json)).toList();
+    } else if (response.statusCode == 401) {
+      // Token might be expired
+      TokenManager.clearToken();
+      throw Exception('Authentication failed. Please login again.');
+    } else {
+      throw Exception('Failed to load events: ${response.statusCode}');
     }
   }
 
-  // Fetch projects
-  Future<List<Project>> fetchProjects() async {
-    try {
-      final headers = _getAuthHeaders();
-      final response = await http.get(
-        Uri.parse('$baseUrl/projects/'),
-        headers: headers,
-      );
+  // Create a new event
+  Future<Event> createEvent({
+    required int calendarId,
+    required String start,
+    required String end,
+    required bool isGig,
+  }) async {
+    final headers = _getAuthHeaders();
+    final response = await http.post(
+      Uri.parse('$baseUrl/events/'),
+      headers: headers,
+      body: json.encode({
+        'calendar': calendarId,
+        'start': start,
+        'end': end,
+        'is_gig': isGig,
+      }),
+    );
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        List<dynamic> results = data['results'];
-        return results.map((json) => Project.fromJson(json)).toList();
-      } else if (response.statusCode == 401) {
-        TokenManager.clearToken();
-        throw Exception('Authentication failed. Please login again.');
-      } else {
-        throw Exception('Failed to load projects: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('Error fetching projects: $e');
-      // Return mock data if API call fails
-      return _getMockProjects();
+    if (response.statusCode == 201) {
+      return Event.fromJson(json.decode(response.body));
+    } else if (response.statusCode == 401) {
+      TokenManager.clearToken();
+      throw Exception('Authentication failed. Please login again.');
+    } else {
+      throw Exception('Failed to create event: ${response.statusCode}');
     }
   }
 
-  // Mock events for demo or when API fails
-  List<Event> _getMockEvents() {
-    return [
-      Event(
-        id: 1,
-        calendarId: 2,
-        start: '12:00:00',
-        end: '13:00:00',
-        isGig: false,
-        organisationName: 'Test Organisation',
-      ),
-      Event(
-        id: 2,
-        calendarId: 2,
-        start: '14:00:00',
-        end: '15:30:00',
-        isGig: true,
-        organisationName: 'Test Organisation',
-      ),
-    ];
+  // Update an existing event
+  Future<Event> updateEvent({
+    required int eventId,
+    required int calendarId,
+    required String start,
+    required String end,
+    required bool isGig,
+  }) async {
+    final headers = _getAuthHeaders();
+    final response = await http.put(
+      Uri.parse('$baseUrl/events/$eventId/'),
+      headers: headers,
+      body: json.encode({
+        'calendar': calendarId,
+        'start': start,
+        'end': end,
+        'is_gig': isGig,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return Event.fromJson(json.decode(response.body));
+    } else if (response.statusCode == 401) {
+      TokenManager.clearToken();
+      throw Exception('Authentication failed. Please login again.');
+    } else {
+      throw Exception('Failed to update event: ${response.statusCode}');
+    }
   }
 
-  // Mock projects for demo or when API fails
-  List<Project> _getMockProjects() {
-    return [
-      Project(
-        id: 17,
-        eventId: 1,
-        deadline: '2025-06-15',
-        priority: 2,
-        organisationId: 5,
-        organisationName: 'Test Organisation',
-      ),
-      Project(
-        id: 15,
-        eventId: null,
-        deadline: '2025-05-20',
-        priority: 1,
-        organisationId: 5,
-        organisationName: 'Test Organisation',
-      ),
-      Project(
-        id: 14,
-        eventId: null,
-        deadline: null,
-        priority: 0,
-        organisationId: 5,
-        organisationName: 'Test Organisation',
-      ),
-      Project(
-        id: 16,
-        eventId: 2,
-        deadline: '2025-07-10',
-        priority: 3,
-        organisationId: 5,
-        organisationName: 'Test Organisation',
-      ),
-      Project(
-        id: 13,
-        eventId: null,
-        deadline: null,
-        priority: 0,
-        organisationId: 5,
-        organisationName: 'Test Organisation',
-      ),
-    ];
+  // Delete an event
+  Future<bool> deleteEvent(int eventId) async {
+    final headers = _getAuthHeaders();
+    final response = await http.delete(
+      Uri.parse('$baseUrl/events/$eventId/'),
+      headers: headers,
+    );
+
+    if (response.statusCode == 204) {
+      return true;
+    } else if (response.statusCode == 401) {
+      TokenManager.clearToken();
+      throw Exception('Authentication failed. Please login again.');
+    } else {
+      throw Exception('Failed to delete event: ${response.statusCode}');
+    }
   }
 }
