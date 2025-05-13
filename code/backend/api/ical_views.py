@@ -1,13 +1,19 @@
 from django.http import HttpResponse
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
+from django.conf import settings
+
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response  # This was missing
 
 from .models import Calendar, User
 from .calendar_token import CalendarSubscription
-from .ical_utils import generate_ical_for_user, generate_ical_for_calendar
+from .ical_utils import generate_ical_for_calendar, generate_ical_for_user
 
+import logging
+logger = logging.getLogger(__name__)
 
 @api_view(['GET'])
 @permission_classes([AllowAny])

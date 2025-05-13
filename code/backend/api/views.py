@@ -120,12 +120,12 @@ class UserOrganisationViewSet(viewsets.ModelViewSet):
 
 # acess when you are in the project or the calender has your id or 
 class CalendarViewSet(viewsets.ModelViewSet):
-    queryset = Calendar.objects.all()
+    queryset = Calendar.objects.all().order_by('id')  # Add default ordering
     serializer_class = CalendarSerializer
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        return get_user_accessible_calendars(self.request.user)
+        return get_user_accessible_calendars(self.request.user).order_by('id')  # Add order_by here too
     
     def create(self, request, *args, **kwargs):
         """

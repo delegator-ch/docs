@@ -170,3 +170,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Tell Django to use our custom User model
 AUTH_USER_MODEL = 'api.User'
+
+# In your settings.py file
+SITE_NAME = 'Delegator'
+SITE_URL = 'http://127.0.0.1'  # Or your actual site URL
+SITE_DOMAIN = '127.0.0.1'  # Or your actual domain

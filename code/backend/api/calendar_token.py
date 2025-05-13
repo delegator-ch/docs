@@ -1,6 +1,8 @@
-
-from django.utils.crypto import get_random_string
 from django.db import models
+from django.utils.crypto import get_random_string
+from django.urls import reverse
+from django.conf import settings
+# In your calendar_token.py file (or whichever file contains this model)
 
 class CalendarSubscription(models.Model):
     """
@@ -29,6 +31,7 @@ class CalendarSubscription(models.Model):
         calendar_name = self.calendar.organisation.name if self.calendar else "All Calendars"
         return f"{self.user.username} - {calendar_name} ({self.token[:8]}...)"
     
+    # Add the get_subscription_url method here
     def get_subscription_url(self, request=None):
         """
         Generate the subscription URL for this token.
