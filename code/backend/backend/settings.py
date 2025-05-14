@@ -175,3 +175,7 @@ AUTH_USER_MODEL = 'api.User'
 SITE_NAME = 'Delegator'
 SITE_URL = 'http://127.0.0.1'  # Or your actual site URL
 SITE_DOMAIN = '127.0.0.1'  # Or your actual domain
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
