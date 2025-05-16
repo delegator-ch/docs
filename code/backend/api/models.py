@@ -198,8 +198,8 @@ class Calendar(models.Model):
 # Only access (CRUD) on calender you have access to
 class Event(models.Model):
     calendar = models.ForeignKey(Calendar, on_delete=models.CASCADE)
-    start = models.TimeField()
-    end = models.TimeField()
+    start = models.DateTimeField()
+    end = models.DateTimeField()
     is_gig = models.BooleanField(default=False)
     
     def __str__(self):
