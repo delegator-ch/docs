@@ -1,7 +1,13 @@
 import 'package:delegator/pages/page-main.dart';
+import 'package:delegator/service/user_service.dart'; // Import user service
 import 'package:flutter/material.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized(); // Ensure Flutter is initialized
+
+  // Initialize user service to fetch current user
+  await UserService.initialize();
+
   runApp(const MyApp());
 }
 

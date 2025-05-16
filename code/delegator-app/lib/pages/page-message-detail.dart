@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../model/chat_model.dart';
 import '../model/message_model.dart';
 import '../service/message_service.dart';
+import '../service/user_service.dart'; // Import the new user service
 
 class PageMessageDetail extends StatefulWidget {
   final Chat chat;
@@ -27,7 +28,20 @@ class _PageMessageDetailState extends State<PageMessageDetail> {
   @override
   void initState() {
     super.initState();
-    _fetchMessages();
+    _initUser();
+  }
+
+  Future<void> _initUser() async {
+    try {
+      // Initialize user information if not already done
+      if (UserService.currentUser == null) {
+        await UserService.initialize();
+      }
+    } catch (e) {
+      print('Error initializing user: $e');
+    } finally {
+      _fetchMessages();
+    }
 
     // Set up a timer to refresh messages every 10 seconds
     _refreshTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
@@ -80,20 +94,27 @@ class _PageMessageDetailState extends State<PageMessageDetail> {
     // Create a temporary message ID that won't conflict with real ones
     final tempId = -DateTime.now().millisecondsSinceEpoch;
 
+    // Get current user info for the optimistic message
+    final currentUser = UserService.currentUser;
+    final now = DateTime.now().toIso8601String();
+
     // Add a temporary optimistic message
     setState(() {
       _messages.add(
         Message(
           id: tempId, // Temporary ID
-          userId: -1, // We don't know user ID yet
+          userId: currentUser?.id ?? -1, // Use actual user ID if available
           chatId: widget.chat.id,
           content: content,
-          sent: DateTime.now().toIso8601String(),
+          sent: now,
           userDetails: {
-            'username': 'test_user_2', // Assuming this is our username
-            'first_name': '', // Add first name if known
-            'last_name': '', // Add last name if known
-            'created': DateTime.now().toIso8601String(),
+            'username':
+                currentUser?.username ??
+                'me', // Use actual username if available
+            'first_name': currentUser?.firstName ?? '',
+            'last_name': currentUser?.lastName ?? '',
+            'created': currentUser?.created ?? now,
+            'profile_image': currentUser?.profileImage,
           },
           chatDetails: {
             'id': widget.chat.id,
@@ -279,8 +300,8 @@ class _PageMessageDetailState extends State<PageMessageDetail> {
   }
 
   Widget _buildMessageBubble(Message message) {
-    final isMe =
-        message.username == "test_user_2"; // Replace with actual user check
+    // Use dynamic user identification instead of hardcoded username
+    final isMe = UserService.isCurrentUserMessage(message.userId);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),

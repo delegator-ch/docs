@@ -1,8 +1,7 @@
 // lib/service/token_manager.dart
 class TokenManager {
   // Store token in memory
-  static String? _token =
-      'demo_token'; // Initialize with a demo token for development
+  static String? _token;
 
   // Get the stored token
   static String? getToken() {
