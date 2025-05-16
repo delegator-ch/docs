@@ -1,10 +1,14 @@
 // lib/pages/page-home.dart
 import 'package:flutter/material.dart';
-import '../components//preview_list_components.dart';
+import '../components/preview_list_components.dart';
 import '../model/project_model.dart';
-import '../service/project_service.dart'; // Import the new project service
+import '../model/task_model.dart';
+import '../service/project_service.dart';
+import '../service/task_service.dart';
 import 'page-project-detail.dart';
 import 'page-all-projects.dart';
+import 'page-all-tasks.dart';
+import '../components/task_list_component.dart';
 
 class PageHome extends StatefulWidget {
   const PageHome({super.key});
@@ -15,33 +19,66 @@ class PageHome extends StatefulWidget {
 
 class _PageHomeState extends State<PageHome> {
   final ProjectService _projectService = ProjectService();
+  final TaskService _taskService = TaskService();
+
   List<Project> _projects = [];
-  bool _isLoading = true;
-  String? _error;
+  List<Task> _tasks = [];
+
+  bool _isLoadingProjects = true;
+  bool _isLoadingTasks = true;
+
+  String? _projectsError;
+  String? _tasksError;
 
   @override
   void initState() {
     super.initState();
+    _fetchData();
+  }
+
+  Future<void> _fetchData() async {
     _fetchProjects();
+    _fetchTasks();
   }
 
   Future<void> _fetchProjects() async {
     try {
       setState(() {
-        _isLoading = true;
-        _error = null;
+        _isLoadingProjects = true;
+        _projectsError = null;
       });
 
       final projects = await _projectService.fetchProjects();
 
       setState(() {
         _projects = projects;
-        _isLoading = false;
+        _isLoadingProjects = false;
       });
     } catch (e) {
       setState(() {
-        _error = e.toString();
-        _isLoading = false;
+        _projectsError = e.toString();
+        _isLoadingProjects = false;
+      });
+    }
+  }
+
+  Future<void> _fetchTasks() async {
+    try {
+      setState(() {
+        _isLoadingTasks = true;
+        _tasksError = null;
+      });
+
+      final tasks = await _taskService.fetchTasks();
+
+      setState(() {
+        _tasks = tasks;
+        _isLoadingTasks = false;
+      });
+    } catch (e) {
+      setState(() {
+        _tasksError = e.toString();
+        _isLoadingTasks = false;
       });
     }
   }
@@ -51,7 +88,7 @@ class _PageHomeState extends State<PageHome> {
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _fetchProjects,
+          onRefresh: _fetchData,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             child: Column(
@@ -60,20 +97,30 @@ class _PageHomeState extends State<PageHome> {
                 _buildHeader(),
                 const Divider(height: 1),
                 const SizedBox(height: 16),
-                _isLoading
-                    ? const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(32.0),
-                        child: CircularProgressIndicator(),
-                      ),
-                    )
-                    : _error != null
-                    ? _buildErrorWidget()
+
+                // Display tasks section
+                _isLoadingTasks
+                    ? _buildLoadingWidget('Loading tasks...')
+                    : _tasksError != null
+                    ? _buildErrorWidget(_tasksError!, _fetchTasks)
+                    : _tasks.isEmpty
+                    ? _buildEmptyTasksWidget()
+                    : _buildTasksPreview(),
+
+                const SizedBox(height: 24),
+                const Divider(height: 1),
+                const SizedBox(height: 16),
+
+                // Display projects section
+                _isLoadingProjects
+                    ? _buildLoadingWidget('Loading projects...')
+                    : _projectsError != null
+                    ? _buildErrorWidget(_projectsError!, _fetchProjects)
                     : _projects.isEmpty
                     ? _buildEmptyProjectsWidget()
                     : _buildProjectsList(),
+
                 const SizedBox(height: 16),
-                // Add more sections or components here as needed
               ],
             ),
           ),
@@ -97,20 +144,66 @@ class _PageHomeState extends State<PageHome> {
     );
   }
 
-  Widget _buildErrorWidget() {
+  Widget _buildLoadingWidget(String message) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32.0),
         child: Column(
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(message),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorWidget(String error, VoidCallback onRetry) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 60, color: Colors.red),
-            const SizedBox(height: 16),
-            Text('Error: $_error'),
-            const SizedBox(height: 16),
+            const Icon(Icons.error_outline, size: 40, color: Colors.red),
+            const SizedBox(height: 8),
+            Text('Error: $error', textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            ElevatedButton(onPressed: onRetry, child: const Text('Try Again')),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyTasksWidget() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.check_circle_outline, size: 40, color: Colors.grey[400]),
+            const SizedBox(height: 8),
+            const Text(
+              'No tasks available',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Create a new task to get started',
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
             ElevatedButton(
-              onPressed: _fetchProjects,
-              child: const Text('Try Again'),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const PageAllTasks()),
+                ).then((_) => _fetchTasks());
+              },
+              child: const Text('Create Task'),
             ),
           ],
         ),
@@ -118,17 +211,38 @@ class _PageHomeState extends State<PageHome> {
     );
   }
 
+  Widget _buildTasksPreview() {
+    // Take up to 3 tasks for preview
+    final previewTasks = _tasks.take(3).toList();
+
+    return TaskListComponent(
+      title: 'Tasks',
+      tasks: previewTasks,
+      onTasksChanged: _fetchTasks,
+      showProject: true,
+      onViewAllPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const PageAllTasks()),
+        ).then((_) => _fetchTasks());
+      },
+    );
+  }
+
   Widget _buildEmptyProjectsWidget() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.folder_open, size: 60, color: Colors.grey),
-            const SizedBox(height: 16),
-            const Text('No projects available', style: TextStyle(fontSize: 18)),
+            Icon(Icons.folder_open, size: 40, color: Colors.grey[400]),
             const SizedBox(height: 8),
+            const Text(
+              'No projects available',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
             const Text(
               'Create a new project to get started',
               style: TextStyle(color: Colors.grey),
@@ -154,8 +268,9 @@ class _PageHomeState extends State<PageHome> {
                     builder: (context) => PageProjectDetail(project: project),
                   ),
                 ).then((_) {
-                  // Refresh projects when returning from project detail
+                  // Refresh projects and tasks when returning from project detail
                   _fetchProjects();
+                  _fetchTasks();
                 });
               },
             );

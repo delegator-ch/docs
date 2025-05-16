@@ -1,63 +1,138 @@
 // lib/pages/page-project-detail.dart
 import 'package:flutter/material.dart';
 import '../model/project_model.dart';
+import '../model/task_model.dart';
+import '../service/task_service.dart';
+import '../components/task_list_component.dart';
 
-class PageProjectDetail extends StatelessWidget {
+class PageProjectDetail extends StatefulWidget {
   final Project project;
 
   const PageProjectDetail({super.key, required this.project});
 
   @override
+  State<PageProjectDetail> createState() => _PageProjectDetailState();
+}
+
+class _PageProjectDetailState extends State<PageProjectDetail> {
+  final TaskService _taskService = TaskService();
+  List<Task> _tasks = [];
+  bool _isLoadingTasks = true;
+  String? _tasksError;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchTasks();
+  }
+
+  Future<void> _fetchTasks() async {
+    try {
+      setState(() {
+        _isLoadingTasks = true;
+        _tasksError = null;
+      });
+
+      final tasks = await _taskService.fetchTasksByProject(widget.project.id);
+
+      setState(() {
+        _tasks = tasks;
+        _isLoadingTasks = false;
+      });
+    } catch (e) {
+      setState(() {
+        _tasksError = e.toString();
+        _isLoadingTasks = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(project.name ?? 'Project Details')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      appBar: AppBar(title: Text(widget.project.name ?? 'Project Details')),
+      body: RefreshIndicator(
+        onRefresh: _fetchTasks,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildProjectDetails(),
+                const SizedBox(height: 24),
+                const Divider(),
+                const SizedBox(height: 16),
+
+                // Tasks section
+                _isLoadingTasks
+                    ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32.0),
+                        child: CircularProgressIndicator(),
+                      ),
+                    )
+                    : _tasksError != null
+                    ? _buildTasksErrorWidget()
+                    : TaskListComponent(
+                      title: 'Project Tasks',
+                      tasks: _tasks,
+                      onTasksChanged: _fetchTasks,
+                      showProject:
+                          false, // Don't show project name since we're in project context
+                      projectId:
+                          widget.project.id, // Link new tasks to this project
+                    ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProjectDetails() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Project Details',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 16),
+        _buildDetailItem('ID', widget.project.id.toString()),
+        _buildDetailItem(
+          'Organisation',
+          widget.project.organisationName ??
+              'Organisation #${widget.project.organisation}',
+        ),
+        if (widget.project.deadline != null)
+          _buildDetailItem('Deadline', _formatDate(widget.project.deadline!)),
+        _buildDetailItem(
+          'Priority',
+          _getPriorityLabel(widget.project.priority),
+        ),
+        if (widget.project.event != null)
+          _buildDetailItem('Event ID', widget.project.event.toString()),
+      ],
+    );
+  }
+
+  Widget _buildTasksErrorWidget() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-              'Project Details',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
+            const Icon(Icons.error_outline, size: 40, color: Colors.red),
             const SizedBox(height: 16),
-            _buildDetailItem('ID', project.id.toString()),
-            _buildDetailItem(
-              'Organisation',
-              project.organisationName ??
-                  'Organisation #${project.organisation}',
-            ),
-            if (project.deadline != null)
-              _buildDetailItem('Deadline', _formatDate(project.deadline!)),
-            _buildDetailItem('Priority', _getPriorityLabel(project.priority)),
-            if (project.event != null)
-              _buildDetailItem('Event ID', project.event.toString()),
-
-            const SizedBox(height: 32),
-            const Divider(),
+            Text('Error loading tasks: $_tasksError'),
             const SizedBox(height: 16),
-
-            // Status section for future implementation
-            const Text(
-              'Project Status',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            Center(
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Text(
-                  'Status details will be implemented in future updates',
-                  style: TextStyle(
-                    fontStyle: FontStyle.italic,
-                    color: Colors.grey,
-                  ),
-                ),
-              ),
+            ElevatedButton(
+              onPressed: _fetchTasks,
+              child: const Text('Try Again'),
             ),
           ],
         ),
