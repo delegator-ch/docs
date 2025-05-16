@@ -37,6 +37,13 @@ class _PageMainState extends State<PageMain> {
     });
   }
 
+  void _onAddButtonPressed() {
+    // You can implement the action for the add button here
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Add button pressed')));
+  }
+
   @override
   void dispose() {
     _pageController.dispose();
@@ -51,6 +58,15 @@ class _PageMainState extends State<PageMain> {
         onPageChanged: _onPageChanged,
         children: _pages,
       ),
+      floatingActionButton:
+          _selectedIndex ==
+                  1 // Show FAB only on home page
+              ? FloatingActionButton(
+                onPressed: _onAddButtonPressed,
+                backgroundColor: Colors.blue,
+                child: const Icon(Icons.add, color: Colors.white),
+              )
+              : null,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
