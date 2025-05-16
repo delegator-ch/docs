@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../model/task_model.dart';
 import '../service/task_service.dart';
+import '../service/user_service.dart'; // Import UserService to get current user ID
 
 class TaskListComponent extends StatefulWidget {
   final List<Task> tasks;
@@ -378,6 +379,10 @@ class _TaskListComponentState extends State<TaskListComponent> {
                                 : null,
                         dueDate: selectedDate?.toIso8601String(),
                         project: widget.projectId,
+                        assignedTo:
+                            UserService
+                                .currentUser
+                                ?.id, // Add current user as assignee
                       );
                       widget.onTasksChanged();
                       if (mounted) {

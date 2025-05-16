@@ -2,11 +2,10 @@
 class Task {
   final int id;
   final String title;
-  final String? description; // Maps to 'content' in API
-  final int
-  status; // API uses status instead of completed (1 = Backlog, 2 = In Progress, 3 = Done)
-  final String? dueDate; // Maps to 'deadline' in API
-  final int? assignedTo; // Maps to 'user' in API
+  final String? description;
+  final int status; // 1 = Backlog, 2 = In Progress, 3 = Done
+  final String? dueDate;
+  final int? assignedTo;
   final int? project;
   final String created;
   final int? duration;
@@ -16,7 +15,7 @@ class Task {
   // Additional fields for UI display
   String? assignedToName;
   String? projectName;
-  String? statusName; // Name of the status from status_details.name
+  String? statusName;
 
   Task({
     required this.id,
@@ -35,7 +34,7 @@ class Task {
     this.statusName,
   });
 
-  // Computed property to determine if task is completed (status == 3 means "Done")
+  // Computed property to determine if task is completed
   bool get completed => status == 3;
 
   factory Task.fromJson(Map<String, dynamic> json) {
@@ -44,9 +43,10 @@ class Task {
       title: json['title'] ?? 'Untitled Task',
       description: json['content'], // API uses 'content' for description
       status: json['status'] ?? 1, // Default to Backlog (1) if not provided
-      dueDate: json['deadline'], // API uses 'deadline' for due date
+      dueDate: json['deadline'], // API uses 'deadline' for dueDate
       assignedTo:
-          json['user'] != null
+          json['user'] !=
+                  null // API uses 'user' for assignedTo
               ? (json['user'] is int
                   ? json['user']
                   : int.parse(json['user'].toString()))
@@ -83,7 +83,7 @@ class Task {
     String? title,
     String? description,
     int? status,
-    bool? completed, // For backward compatibility
+    bool? completed,
     String? dueDate,
     int? assignedTo,
     int? project,
@@ -99,7 +99,6 @@ class Task {
       id: id ?? this.id,
       title: title ?? this.title,
       description: description ?? this.description,
-      // If completed is provided, convert it to appropriate status
       status: status ?? (completed != null ? (completed ? 3 : 1) : this.status),
       dueDate: dueDate ?? this.dueDate,
       assignedTo: assignedTo ?? this.assignedTo,

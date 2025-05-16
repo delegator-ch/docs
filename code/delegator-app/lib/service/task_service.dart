@@ -5,6 +5,8 @@ import 'token_manager.dart';
 import 'user_service.dart';
 import 'project_service.dart';
 import '../model/task_model.dart';
+import 'dart:async';
+import 'dart:io';
 
 class TaskService {
   static const String baseUrl = 'http://delegator.ch';
@@ -82,7 +84,34 @@ class TaskService {
     int? assignedTo,
     int? project,
   }) async {
-    final headers = _getAuthHeaders();
+    // Make sure this function runs on a background isolate to avoid UI freezing
+    return compute(_createTaskIsolate, {
+      'title': title,
+      'description': description,
+      'dueDate': dueDate,
+      'assignedTo': assignedTo,
+      'project': project,
+      'baseUrl': baseUrl,
+      'authToken': await TokenManager.getToken(), // Pass token explicitly
+    });
+  }
+
+  // This function runs in a separate isolate
+  Future<Task> _createTaskIsolate(Map<String, dynamic> params) async {
+    final String title = params['title'];
+    final String? description = params['description'];
+    final String? dueDate = params['dueDate'];
+    final int? assignedTo = params['assignedTo'];
+    final int? project = params['project'];
+    final String baseUrl = params['baseUrl'];
+    final String? token = params['authToken'];
+
+    // Create auth headers manually since we're in an isolate
+    final Map<String, String> headers = {
+      'Authorization': 'Bearer $token',
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
 
     // Format request according to API structure
     final Map<String, dynamic> payload = {
@@ -91,50 +120,109 @@ class TaskService {
     };
 
     // Map our fields to API expected fields
-    if (description != null)
-      payload['content'] = description; // API uses content
-    if (dueDate != null) payload['deadline'] = dueDate; // API uses deadline
-    if (assignedTo != null) payload['user'] = assignedTo; // API uses user
+    if (description != null) payload['content'] = description;
+    if (dueDate != null) payload['deadline'] = dueDate;
+    if (assignedTo != null) payload['user'] = assignedTo;
     if (project != null) payload['project'] = project;
 
-    final response = await http.post(
-      Uri.parse('$baseUrl/tasks/'),
-      headers: headers,
-      body: json.encode(payload),
-    );
+    print('Creating task with payload: $payload');
 
-    if (response.statusCode == 201) {
-      final data = json.decode(response.body);
-      Task task = Task.fromJson(data);
-
-      // Get user name if assigned
-      if (task.assignedTo != null) {
-        try {
-          final user = await UserService.fetchUserById(task.assignedTo!);
-          task = task.copyWith(assignedToName: user.displayName);
-        } catch (e) {
-          print('Error fetching user: $e');
-        }
+    // Check for connectivity first
+    try {
+      final connectivityResult = await Connectivity().checkConnectivity();
+      if (connectivityResult == ConnectivityResult.none) {
+        throw Exception(
+          'No internet connection. Please check your network and try again.',
+        );
       }
 
-      // Get project name if assigned
-      if (task.project != null) {
-        try {
-          final project = await _projectService.fetchProjectById(task.project!);
-          task = task.copyWith(projectName: project.name);
-        } catch (e) {
-          print('Error fetching project: $e');
-        }
+      // Try both HTTP and HTTPS if needed
+      String finalUrl = '$baseUrl/tasks/';
+      if (!finalUrl.startsWith('http')) {
+        finalUrl = 'https://$finalUrl';
       }
 
-      return task;
-    } else if (response.statusCode == 401) {
-      TokenManager.clearToken();
-      throw Exception('Authentication failed. Please login again.');
-    } else {
-      throw Exception(
-        'Failed to create task: ${response.statusCode} - ${response.body}',
-      );
+      print('Sending request to: $finalUrl');
+
+      // Create a client with shorter timeout
+      final client = http.Client();
+      try {
+        final response = await client
+            .post(
+              Uri.parse(finalUrl),
+              headers: headers,
+              body: json.encode(payload),
+            )
+            .timeout(
+              const Duration(seconds: 15),
+              onTimeout: () {
+                print('Request timed out after 15 seconds');
+                throw TimeoutException('Request timed out');
+              },
+            );
+
+        print('Response received: ${response.statusCode}');
+
+        if (response.statusCode == 201) {
+          final data = json.decode(response.body);
+          return Task.fromJson(data);
+        } else if (response.statusCode == 401) {
+          throw Exception('Authentication failed. Please login again.');
+        } else {
+          throw Exception(
+            'Failed to create task: ${response.statusCode} - ${response.body}',
+          );
+        }
+      } finally {
+        client.close();
+      }
+    } on TimeoutException {
+      print('Network request timed out - server may be unreachable');
+      throw Exception('Server not responding. Please try again later.');
+    } on SocketException catch (e) {
+      print('Socket exception: $e');
+
+      // Try alternative URL with different protocol
+      if (baseUrl.startsWith('http://')) {
+        final httpsUrl = baseUrl.replaceFirst('http://', 'https://');
+        print('Retrying with HTTPS: $httpsUrl/tasks/');
+
+        try {
+          final client = http.Client();
+          try {
+            final response = await client
+                .post(
+                  Uri.parse('$httpsUrl/tasks/'),
+                  headers: headers,
+                  body: json.encode(payload),
+                )
+                .timeout(const Duration(seconds: 15));
+
+            print('HTTPS Response received: ${response.statusCode}');
+
+            if (response.statusCode == 201) {
+              final data = json.decode(response.body);
+              return Task.fromJson(data);
+            } else {
+              throw Exception('Failed with HTTPS too: ${response.statusCode}');
+            }
+          } finally {
+            client.close();
+          }
+        } catch (e) {
+          print('HTTPS attempt also failed: $e');
+          throw Exception(
+            'Network error. Please check your connection and server URL.',
+          );
+        }
+      } else {
+        throw Exception(
+          'Network error. Please check your connection and server URL.',
+        );
+      }
+    } catch (e) {
+      print('Exception during HTTP request: $e');
+      throw Exception('Failed to create task: $e');
     }
   }
 
@@ -157,6 +245,8 @@ class TaskService {
     if (task.dependentOnTask != null)
       payload['dependent_on_task'] = task.dependentOnTask;
     if (task.event != null) payload['event'] = task.event;
+
+    print('Updating task with payload: $payload'); // For debugging
 
     final response = await http.put(
       Uri.parse('$baseUrl/tasks/${task.id}/'),
