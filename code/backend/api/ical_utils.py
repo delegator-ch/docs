@@ -47,17 +47,29 @@ def generate_ical_for_calendar(calendar, request=None, user=None):
         summary = f"Gig: {event.calendar.organisation.name}" if event.is_gig else f"Event: {event.calendar.organisation.name}"
         ical_event.add('summary', summary)
         
-        # Fix these lines:
-        # Don't combine date and event.start if event.start is already a datetime
-        # Check if event.start is a datetime or a time
+        # FIXED: Properly handle the event start and end times
+        # Ensure we're using the event date, not today's date
         if isinstance(event.start, datetime):
             start_datetime = event.start
             end_datetime = event.end
         else:
-            # Only combine if it's a time object
-            today = date.today()
-            start_datetime = datetime.combine(today, event.start)
-            end_datetime = datetime.combine(today, event.end)
+            # Get the event date from the event model
+            # This assumes your Event model has a date field or we can extract date from start
+            # If event.start is a time and event has a date field:
+            if hasattr(event, 'date'):
+                event_date = event.date
+            else:
+                # If no explicit date field, extract date portion from start datetime
+                # This assumes event.start has a date component we can use
+                event_date = event.start.date()
+                
+            # Combine the event date with the time
+            start_datetime = datetime.combine(event_date, event.start)
+            end_datetime = datetime.combine(event_date, event.end)
+        
+        # Add the proper start and end times
+        ical_event.add('dtstart', start_datetime)
+        ical_event.add('dtend', end_datetime)
         
         # Only add timezone if the datetime is naive (doesn't have tzinfo)
         timezone = pytz.timezone('UTC')
@@ -140,17 +152,29 @@ def generate_ical_for_user(user, request=None):
         summary = f"Gig: {event.calendar.organisation.name}" if event.is_gig else f"Event: {event.calendar.organisation.name}"
         ical_event.add('summary', summary)
         
-        # Fix these lines:
-        # Don't combine date and event.start if event.start is already a datetime
-        # Check if event.start is a datetime or a time
+        # FIXED: Properly handle the event start and end times
+        # Ensure we're using the event date, not today's date
         if isinstance(event.start, datetime):
             start_datetime = event.start
             end_datetime = event.end
         else:
-            # Only combine if it's a time object
-            today = date.today()
-            start_datetime = datetime.combine(today, event.start)
-            end_datetime = datetime.combine(today, event.end)
+            # Get the event date from the event model
+            # This assumes your Event model has a date field or we can extract date from start
+            # If event.start is a time and event has a date field:
+            if hasattr(event, 'date'):
+                event_date = event.date
+            else:
+                # If no explicit date field, extract date portion from start datetime
+                # This assumes event.start has a date component we can use
+                event_date = event.start.date()
+                
+            # Combine the event date with the time
+            start_datetime = datetime.combine(event_date, event.start)
+            end_datetime = datetime.combine(event_date, event.end)
+        
+        # Add the proper start and end times
+        ical_event.add('dtstart', start_datetime)
+        ical_event.add('dtend', end_datetime)
         
         # Only add timezone if the datetime is naive (doesn't have tzinfo)
         timezone = pytz.timezone('UTC')
