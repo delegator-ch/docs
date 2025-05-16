@@ -10,7 +10,7 @@ class PageProjectDetail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(project.name)),
+      appBar: AppBar(title: Text(project.name ?? 'Project Details')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -22,17 +22,40 @@ class PageProjectDetail extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             _buildDetailItem('ID', project.id.toString()),
-            _buildDetailItem('Name', project.name),
-            _buildDetailItem('Organisation', project.organisation),
-            _buildDetailItem('Created', project.created),
+            _buildDetailItem(
+              'Organisation',
+              project.organisationName ??
+                  'Organisation #${project.organisation}',
+            ),
+            if (project.deadline != null)
+              _buildDetailItem('Deadline', _formatDate(project.deadline!)),
+            _buildDetailItem('Priority', _getPriorityLabel(project.priority)),
+            if (project.event != null)
+              _buildDetailItem('Event ID', project.event.toString()),
 
             const SizedBox(height: 32),
-            const Center(
-              child: Text(
-                '(Placeholder for project details)',
-                style: TextStyle(
-                  fontStyle: FontStyle.italic,
-                  color: Colors.grey,
+            const Divider(),
+            const SizedBox(height: 16),
+
+            // Status section for future implementation
+            const Text(
+              'Project Status',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            Center(
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'Status details will be implemented in future updates',
+                  style: TextStyle(
+                    fontStyle: FontStyle.italic,
+                    color: Colors.grey,
+                  ),
                 ),
               ),
             ),
@@ -40,6 +63,26 @@ class PageProjectDetail extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _formatDate(String date) {
+    final DateTime dateTime = DateTime.parse(date);
+    return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+  }
+
+  String _getPriorityLabel(int priority) {
+    switch (priority) {
+      case 0:
+        return 'Low';
+      case 1:
+        return 'Medium';
+      case 2:
+        return 'High';
+      case 3:
+        return 'Urgent';
+      default:
+        return 'Unknown ($priority)';
+    }
   }
 
   Widget _buildDetailItem(String label, String value) {

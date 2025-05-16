@@ -18,8 +18,8 @@ class PageAllProjects extends StatelessWidget {
         itemBuilder: (context, index) {
           final project = projects[index];
           return ListTile(
-            title: Text(project.name),
-            subtitle: Text(project.organisation),
+            title: Text(project.name ?? 'Unnamed Project'),
+            subtitle: Text(project.organisationName ?? 'Unknown Organisation'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               Navigator.push(

@@ -1,4 +1,4 @@
-// Updated project_model.dart with better error handling
+// lib/model/project_model.dart
 class Project {
   final int id;
   final int? event;
@@ -8,9 +8,10 @@ class Project {
   eventDetails; // Using dynamic as the type isn't clear from the response
   final int organisation;
 
-  // Optional fields for UI display
-  String? name; // We'll need to fetch this separately or set a default
-  String? organisationName; // We'll need to fetch this separately
+  // Optional fields for UI display that aren't in the API response
+  String? name;
+  String? organisationName;
+  String? created; // Adding this for UI display
 
   Project({
     required this.id,
@@ -21,6 +22,7 @@ class Project {
     required this.organisation,
     this.name,
     this.organisationName,
+    this.created,
   });
 
   factory Project.fromJson(Map<String, dynamic> json) {
@@ -81,6 +83,8 @@ class Project {
       name: "Project #$id",
       // Organisation name will need to be set separately
       organisationName: "Organisation #$organisation",
+      // Set a default creation date (today)
+      created: DateTime.now().toIso8601String(),
     );
   }
 
@@ -94,6 +98,7 @@ class Project {
     int? organisation,
     String? name,
     String? organisationName,
+    String? created,
   }) {
     return Project(
       id: id ?? this.id,
@@ -104,6 +109,21 @@ class Project {
       organisation: organisation ?? this.organisation,
       name: name ?? this.name,
       organisationName: organisationName ?? this.organisationName,
+      created: created ?? this.created,
     );
+  }
+
+  // Helper method to set a name based on the project's ID
+  void setDefaultName() {
+    if (name == null || name!.isEmpty) {
+      name = 'Project #$id';
+    }
+  }
+
+  // Helper method to set a creation date if it's missing
+  void setDefaultCreated() {
+    if (created == null || created!.isEmpty) {
+      created = DateTime.now().toIso8601String();
+    }
   }
 }
