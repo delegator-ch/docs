@@ -47,17 +47,18 @@ def generate_ical_for_calendar(calendar, request=None, user=None):
         summary = f"Gig: {event.calendar.organisation.name}" if event.is_gig else f"Event: {event.calendar.organisation.name}"
         ical_event.add('summary', summary)
         
-        # Combine date and time
-        # Note: This assumes your Event model's start/end are TimeField, not DateTimeField
-        # You'll need to adjust this based on your actual model
-        today = date.today()  # Or get from event if you store dates
-        start_datetime = datetime.combine(today, event.start)
-        end_datetime = datetime.combine(today, event.end)
-        
-        # Add timezone information (optional but recommended)
-        timezone = pytz.timezone('UTC')  # Or get from user preferences
-        start_datetime = timezone.localize(start_datetime)
-        end_datetime = timezone.localize(end_datetime)
+        # Use the datetime fields directly - they already have timezone information
+        # as DateTimeField in Django stores timezone-aware datetime objects
+        start_datetime = event.start
+        end_datetime = event.end
+
+        # Ensure they're in UTC timezone (if needed)
+        # If they're already in UTC, this will have no effect
+        timezone = pytz.timezone('UTC')
+        if start_datetime.tzinfo != pytz.UTC:
+            start_datetime = start_datetime.astimezone(pytz.UTC)
+        if end_datetime.tzinfo != pytz.UTC:
+            end_datetime = end_datetime.astimezone(pytz.UTC)
         
         ical_event.add('dtstart', start_datetime)
         ical_event.add('dtend', end_datetime)
@@ -140,8 +141,8 @@ def generate_ical_for_user(user, request=None):
         # Note: This assumes your Event model's start/end are TimeField, not DateTimeField
         # You'll need to adjust this based on your actual model
         today = date.today()  # Or get from event if you store dates
-        start_datetime = datetime.combine(today, event.start)
-        end_datetime = datetime.combine(today, event.end)
+        start_datetime = event.start
+        end_datetime = event.end
         
         # Add timezone information
         timezone = pytz.timezone('UTC')  # Or get from user preferences
