@@ -1,3 +1,4 @@
+// lib/pages/page-main.dart
 import 'package:flutter/material.dart';
 import 'page-chat.dart';
 import 'page-home.dart';
