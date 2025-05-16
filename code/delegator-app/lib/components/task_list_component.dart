@@ -247,6 +247,15 @@ class _TaskListComponentState extends State<TaskListComponent> {
                       ),
                     ),
                   ],
+                  if (task.statusName != null) ...[
+                    const SizedBox(width: 8),
+                    Icon(Icons.list_alt, size: 12, color: Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Text(
+                      task.statusName!,
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -371,6 +380,13 @@ class _TaskListComponentState extends State<TaskListComponent> {
                         project: widget.projectId,
                       );
                       widget.onTasksChanged();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Task created successfully'),
+                          ),
+                        );
+                      }
                     } catch (e) {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -400,6 +416,9 @@ class _TaskListComponentState extends State<TaskListComponent> {
     DateTime? selectedDate =
         task.dueDate != null ? DateTime.parse(task.dueDate!) : null;
 
+    // Track if task is completed for UI
+    bool isCompleted = task.completed;
+
     await showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
@@ -415,11 +434,11 @@ class _TaskListComponentState extends State<TaskListComponent> {
                     Row(
                       children: [
                         Checkbox(
-                          value: task.completed,
+                          value: isCompleted,
                           onChanged: (bool? value) {
                             if (value != null) {
                               setState(() {
-                                task = task.copyWith(completed: value);
+                                isCompleted = value;
                               });
                             }
                           },
@@ -505,6 +524,7 @@ class _TaskListComponentState extends State<TaskListComponent> {
                     Navigator.of(dialogContext).pop();
 
                     try {
+                      // Create an updated task with the new values
                       final updatedTask = task.copyWith(
                         title: titleController.text.trim(),
                         description:
@@ -512,6 +532,8 @@ class _TaskListComponentState extends State<TaskListComponent> {
                                 ? descriptionController.text.trim()
                                 : null,
                         dueDate: selectedDate?.toIso8601String(),
+                        // Convert the UI completed state to the appropriate status
+                        status: isCompleted ? 3 : 1,
                       );
 
                       await _taskService.updateTask(updatedTask);

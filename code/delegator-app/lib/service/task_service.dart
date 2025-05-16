@@ -84,11 +84,17 @@ class TaskService {
   }) async {
     final headers = _getAuthHeaders();
 
-    final Map<String, dynamic> payload = {'title': title, 'completed': false};
+    // Format request according to API structure
+    final Map<String, dynamic> payload = {
+      'title': title,
+      'status': 1, // Default to Backlog
+    };
 
-    if (description != null) payload['description'] = description;
-    if (dueDate != null) payload['due_date'] = dueDate;
-    if (assignedTo != null) payload['assigned_to'] = assignedTo;
+    // Map our fields to API expected fields
+    if (description != null)
+      payload['content'] = description; // API uses content
+    if (dueDate != null) payload['deadline'] = dueDate; // API uses deadline
+    if (assignedTo != null) payload['user'] = assignedTo; // API uses user
     if (project != null) payload['project'] = project;
 
     final response = await http.post(
@@ -126,7 +132,9 @@ class TaskService {
       TokenManager.clearToken();
       throw Exception('Authentication failed. Please login again.');
     } else {
-      throw Exception('Failed to create task: ${response.statusCode}');
+      throw Exception(
+        'Failed to create task: ${response.statusCode} - ${response.body}',
+      );
     }
   }
 
@@ -134,15 +142,21 @@ class TaskService {
   Future<Task> updateTask(Task task) async {
     final headers = _getAuthHeaders();
 
+    // Format API request according to API structure
     final Map<String, dynamic> payload = {
       'title': task.title,
-      'completed': task.completed,
+      'status': task.status,
     };
 
-    if (task.description != null) payload['description'] = task.description;
-    if (task.dueDate != null) payload['due_date'] = task.dueDate;
-    if (task.assignedTo != null) payload['assigned_to'] = task.assignedTo;
+    // Map our fields to API expected fields
+    if (task.description != null) payload['content'] = task.description;
+    if (task.dueDate != null) payload['deadline'] = task.dueDate;
+    if (task.assignedTo != null) payload['user'] = task.assignedTo;
     if (task.project != null) payload['project'] = task.project;
+    if (task.duration != null) payload['duration'] = task.duration;
+    if (task.dependentOnTask != null)
+      payload['dependent_on_task'] = task.dependentOnTask;
+    if (task.event != null) payload['event'] = task.event;
 
     final response = await http.put(
       Uri.parse('$baseUrl/tasks/${task.id}/'),
@@ -159,13 +173,18 @@ class TaskService {
       TokenManager.clearToken();
       throw Exception('Authentication failed. Please login again.');
     } else {
-      throw Exception('Failed to update task: ${response.statusCode}');
+      throw Exception(
+        'Failed to update task: ${response.statusCode} - ${response.body}',
+      );
     }
   }
 
-  // Toggle task completion status
+  // Toggle task completion status (update task status)
   Future<Task> toggleTaskCompletion(Task task) async {
-    final updatedTask = task.copyWith(completed: !task.completed);
+    // If task is completed (status 3), change to Backlog (1)
+    // Otherwise change to Done (3)
+    final newStatus = task.status == 3 ? 1 : 3;
+    final updatedTask = task.copyWith(status: newStatus);
     return updateTask(updatedTask);
   }
 
@@ -184,7 +203,9 @@ class TaskService {
       TokenManager.clearToken();
       throw Exception('Authentication failed. Please login again.');
     } else {
-      throw Exception('Failed to delete task: ${response.statusCode}');
+      throw Exception(
+        'Failed to delete task: ${response.statusCode} - ${response.body}',
+      );
     }
   }
 
