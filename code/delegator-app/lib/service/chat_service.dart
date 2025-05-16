@@ -4,7 +4,7 @@ import 'token_manager.dart';
 import '../model/chat_model.dart';
 
 class ChatService {
-  static const String baseUrl = 'http://10.0.2.2';
+  static const String baseUrl = 'http://delegator.ch';
 
   // Get headers with authentication token
   Map<String, String> _getAuthHeaders() {

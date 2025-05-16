@@ -5,7 +5,7 @@ import 'token_manager.dart';
 import '../model/event_model.dart';
 
 class EventService {
-  static const String baseUrl = 'http://10.0.2.2'; // For Android emulator
+  static const String baseUrl = 'http://delegator.ch'; // For Android emulator
   // If testing on real device or iOS simulator, you might need to adjust this URL
   // For iOS simulator: http://127.0.0.1
   // For real device: your actual server IP
