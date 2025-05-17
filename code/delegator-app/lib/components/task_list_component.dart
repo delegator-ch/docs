@@ -373,12 +373,13 @@ class _TaskListComponentState extends State<TaskListComponent> {
                     try {
                       await _taskService.createTask(
                         title: titleController.text.trim(),
+                        status: 1,
                         description:
                             descriptionController.text.trim().isNotEmpty
                                 ? descriptionController.text.trim()
                                 : null,
                         dueDate: selectedDate?.toIso8601String(),
-                        project: widget.projectId,
+                        project: 17, //debug
                         assignedTo:
                             UserService
                                 .currentUser

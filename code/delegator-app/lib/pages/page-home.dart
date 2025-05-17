@@ -270,7 +270,7 @@ class _PageHomeState extends State<PageHome> {
                 ).then((_) {
                   // Refresh projects and tasks when returning from project detail
                   _fetchProjects();
-                  _fetchTasks();
+                  //_fetchTasks();
                 });
               },
             );

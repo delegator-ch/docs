@@ -4,9 +4,9 @@ class Task {
   final String title;
   final String? description;
   final int status; // 1 = Backlog, 2 = In Progress, 3 = Done
+  final int project;
   final String? dueDate;
   final int? assignedTo;
-  final int? project;
   final String created;
   final int? duration;
   final int? dependentOnTask;
@@ -24,7 +24,7 @@ class Task {
     required this.status,
     this.dueDate,
     this.assignedTo,
-    this.project,
+    required this.project,
     required this.created,
     this.duration,
     this.dependentOnTask,
@@ -33,6 +33,34 @@ class Task {
     this.projectName,
     this.statusName,
   });
+
+  // Factory constructor for creating a new task with temporary id
+  // This is used when creating a task before it's saved to the backend
+  factory Task.forCreation({
+    required String title,
+    String? description,
+    int status = 1,
+    String? dueDate,
+    int? assignedTo,
+    required int project,
+    int? duration,
+    int? dependentOnTask,
+    int? event,
+  }) {
+    return Task(
+      id: -1, // Temporary ID that will be replaced by the server
+      title: title,
+      description: description,
+      status: status,
+      dueDate: dueDate,
+      assignedTo: assignedTo,
+      project: project,
+      created: DateTime.now().toIso8601String(),
+      duration: duration,
+      dependentOnTask: dependentOnTask,
+      event: event,
+    );
+  }
 
   // Computed property to determine if task is completed
   bool get completed => status == 3;

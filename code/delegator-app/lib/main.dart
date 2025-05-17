@@ -6,6 +6,16 @@ import 'package:flutter/material.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Ensure Flutter is initialized
 
+  // Try to fetch a token with default credentials
+  print('Attempting to fetch token with default credentials...');
+  bool tokenFetched = await TokenManager.fetchTokenWithDefaultCredentials();
+
+  if (tokenFetched) {
+    print('Token fetched successfully!');
+  } else {
+    print('Failed to fetch token with default credentials');
+  }
+
   // Initialize user service to fetch current user
   await UserService.initialize();
 
