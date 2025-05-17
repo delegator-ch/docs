@@ -198,11 +198,11 @@ class _TaskListComponentState extends State<TaskListComponent> {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (task.description != null && task.description!.isNotEmpty)
+            if (task.content != null && task.content!.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 4.0),
                 child: Text(
-                  task.description!,
+                  task.content!,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 12, color: Colors.grey[600]),
@@ -212,11 +212,11 @@ class _TaskListComponentState extends State<TaskListComponent> {
               padding: const EdgeInsets.only(top: 4.0),
               child: Row(
                 children: [
-                  if (task.assignedToName != null) ...[
+                  if (task.userName != null) ...[
                     Icon(Icons.person, size: 12, color: Colors.grey[600]),
                     const SizedBox(width: 4),
                     Text(
-                      task.assignedToName!,
+                      task.userName!,
                       style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                     const SizedBox(width: 8),
@@ -229,7 +229,7 @@ class _TaskListComponentState extends State<TaskListComponent> {
                       style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                   ],
-                  if (task.dueDate != null) ...[
+                  if (task.deadline != null) ...[
                     const SizedBox(width: 8),
                     Icon(
                       Icons.calendar_today,
@@ -238,11 +238,11 @@ class _TaskListComponentState extends State<TaskListComponent> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      _formatDate(task.dueDate!),
+                      _formatDate(task.deadline!),
                       style: TextStyle(
                         fontSize: 12,
                         color:
-                            _isOverdue(task.dueDate!)
+                            _isOverdue(task.deadline!)
                                 ? Colors.red
                                 : Colors.grey[600],
                       ),
@@ -281,8 +281,9 @@ class _TaskListComponentState extends State<TaskListComponent> {
 
   Future<void> _showAddTaskDialog(BuildContext context) async {
     final titleController = TextEditingController();
-    final descriptionController = TextEditingController();
-    DateTime? selectedDate;
+    final contentController =
+        TextEditingController(); // Renamed from descriptionController
+    DateTime? selectedDeadline; // Renamed from selectedDate
 
     await showDialog(
       context: context,
@@ -305,9 +306,10 @@ class _TaskListComponentState extends State<TaskListComponent> {
                     ),
                     const SizedBox(height: 16),
                     TextField(
-                      controller: descriptionController,
+                      controller: contentController,
                       decoration: const InputDecoration(
-                        labelText: 'Description (optional)',
+                        labelText:
+                            'Content (optional)', // Renamed from Description
                         border: OutlineInputBorder(),
                       ),
                       maxLines: 3,
@@ -317,9 +319,10 @@ class _TaskListComponentState extends State<TaskListComponent> {
                       children: [
                         Expanded(
                           child: Text(
-                            selectedDate != null
-                                ? 'Due: ${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}'
-                                : 'No due date set',
+                            selectedDeadline !=
+                                    null // Renamed from selectedDate
+                                ? 'Deadline: ${selectedDeadline!.day}/${selectedDeadline!.month}/${selectedDeadline!.year}'
+                                : 'No deadline set', // Renamed from due date
                           ),
                         ),
                         TextButton(
@@ -334,18 +337,23 @@ class _TaskListComponentState extends State<TaskListComponent> {
                             );
                             if (date != null) {
                               setState(() {
-                                selectedDate = date;
+                                selectedDeadline =
+                                    date; // Renamed from selectedDate
                               });
                             }
                           },
-                          child: const Text('Set Due Date'),
+                          child: const Text(
+                            'Set Deadline',
+                          ), // Renamed from Set Due Date
                         ),
-                        if (selectedDate != null)
+                        if (selectedDeadline !=
+                            null) // Renamed from selectedDate
                           IconButton(
                             icon: const Icon(Icons.clear),
                             onPressed: () {
                               setState(() {
-                                selectedDate = null;
+                                selectedDeadline =
+                                    null; // Renamed from selectedDate
                               });
                             },
                           ),
@@ -371,20 +379,35 @@ class _TaskListComponentState extends State<TaskListComponent> {
                     Navigator.of(dialogContext).pop();
 
                     try {
+                      // Use the project ID from widget.projectId if available, otherwise use a default project ID (1)
+                      // Note: Removed the hardcoded project ID (17)
+                      final projectId = widget.projectId ?? 1;
+
+                      // Log the task creation attempt
+                      print('Attempting to create task with:');
+                      print('- Title: ${titleController.text.trim()}');
+                      print('- Content: ${contentController.text.trim()}');
+                      print(
+                        '- Deadline: ${selectedDeadline?.toIso8601String()}',
+                      );
+                      print('- Project: $projectId');
+                      print('- User: ${UserService.currentUser?.id}');
+
                       await _taskService.createTask(
                         title: titleController.text.trim(),
                         status: 1,
-                        description:
-                            descriptionController.text.trim().isNotEmpty
-                                ? descriptionController.text.trim()
+                        content:
+                            contentController.text.trim().isNotEmpty
+                                ? contentController.text.trim()
                                 : null,
-                        dueDate: selectedDate?.toIso8601String(),
-                        project: 17, //debug
-                        assignedTo:
+                        deadline: selectedDeadline?.toIso8601String(),
+                        project: projectId,
+                        user:
                             UserService
                                 .currentUser
-                                ?.id, // Add current user as assignee
+                                ?.id, // Renamed from assignedTo to user
                       );
+
                       widget.onTasksChanged();
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -395,6 +418,7 @@ class _TaskListComponentState extends State<TaskListComponent> {
                       }
                     } catch (e) {
                       if (mounted) {
+                        // Improved error message to include full exception details
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text('Error creating task: $e')),
                         );
@@ -411,16 +435,14 @@ class _TaskListComponentState extends State<TaskListComponent> {
     );
 
     titleController.dispose();
-    descriptionController.dispose();
+    contentController.dispose();
   }
 
   Future<void> _showEditTaskDialog(BuildContext context, Task task) async {
     final titleController = TextEditingController(text: task.title);
-    final descriptionController = TextEditingController(
-      text: task.description ?? '',
-    );
-    DateTime? selectedDate =
-        task.dueDate != null ? DateTime.parse(task.dueDate!) : null;
+    final contentController = TextEditingController(text: task.content ?? '');
+    DateTime? selectedDeadline =
+        task.deadline != null ? DateTime.parse(task.deadline!) : null;
 
     // Track if task is completed for UI
     bool isCompleted = task.completed;
@@ -462,9 +484,9 @@ class _TaskListComponentState extends State<TaskListComponent> {
                     ),
                     const SizedBox(height: 16),
                     TextField(
-                      controller: descriptionController,
+                      controller: contentController,
                       decoration: const InputDecoration(
-                        labelText: 'Description (optional)',
+                        labelText: 'Content (optional)',
                         border: OutlineInputBorder(),
                       ),
                       maxLines: 3,
@@ -474,16 +496,16 @@ class _TaskListComponentState extends State<TaskListComponent> {
                       children: [
                         Expanded(
                           child: Text(
-                            selectedDate != null
-                                ? 'Due: ${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}'
-                                : 'No due date set',
+                            selectedDeadline != null
+                                ? 'Deadline: ${selectedDeadline!.day}/${selectedDeadline!.month}/${selectedDeadline!.year}'
+                                : 'No deadline set',
                           ),
                         ),
                         TextButton(
                           onPressed: () async {
                             final date = await showDatePicker(
                               context: context,
-                              initialDate: selectedDate ?? DateTime.now(),
+                              initialDate: selectedDeadline ?? DateTime.now(),
                               firstDate: DateTime.now().subtract(
                                 const Duration(days: 365),
                               ),
@@ -493,18 +515,18 @@ class _TaskListComponentState extends State<TaskListComponent> {
                             );
                             if (date != null) {
                               setState(() {
-                                selectedDate = date;
+                                selectedDeadline = date;
                               });
                             }
                           },
-                          child: const Text('Set Due Date'),
+                          child: const Text('Set Deadline'),
                         ),
-                        if (selectedDate != null)
+                        if (selectedDeadline != null)
                           IconButton(
                             icon: const Icon(Icons.clear),
                             onPressed: () {
                               setState(() {
-                                selectedDate = null;
+                                selectedDeadline = null;
                               });
                             },
                           ),
@@ -530,20 +552,37 @@ class _TaskListComponentState extends State<TaskListComponent> {
                     Navigator.of(dialogContext).pop();
 
                     try {
+                      // Log the update attempt
+                      print('Updating task ${task.id} with:');
+                      print('- Title: ${titleController.text.trim()}');
+                      print('- Content: ${contentController.text.trim()}');
+                      print(
+                        '- Deadline: ${selectedDeadline?.toIso8601String()}',
+                      );
+                      print('- Completed: $isCompleted');
+
                       // Create an updated task with the new values
                       final updatedTask = task.copyWith(
                         title: titleController.text.trim(),
-                        description:
-                            descriptionController.text.trim().isNotEmpty
-                                ? descriptionController.text.trim()
+                        content:
+                            contentController.text.trim().isNotEmpty
+                                ? contentController.text.trim()
                                 : null,
-                        dueDate: selectedDate?.toIso8601String(),
+                        deadline: selectedDeadline?.toIso8601String(),
                         // Convert the UI completed state to the appropriate status
                         status: isCompleted ? 3 : 1,
                       );
 
                       await _taskService.updateTask(updatedTask);
                       widget.onTasksChanged();
+
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Task updated successfully'),
+                          ),
+                        );
+                      }
                     } catch (e) {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -562,6 +601,6 @@ class _TaskListComponentState extends State<TaskListComponent> {
     );
 
     titleController.dispose();
-    descriptionController.dispose();
+    contentController.dispose();
   }
 }

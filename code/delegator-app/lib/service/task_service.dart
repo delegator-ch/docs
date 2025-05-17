@@ -105,30 +105,32 @@ class TaskService {
     }
   }
 
-  // Create a new task with auto-retry
+  // Create a new task with auto-retry, using API naming conventions
   Future<Task> createTask({
     required String title,
     int status = 1,
-    String? description,
-    String? dueDate,
-    int? assignedTo,
+    String? content, // Changed from description to content to match API
+    String? deadline, // Changed from dueDate to deadline to match API
+    int? user, // Changed from assignedTo to user to match API
     required int project,
   }) async {
     try {
       final headers = _getAuthHeaders();
 
-      // Format request according to API structure
+      // Format request according to API structure using API field names directly
       final Map<String, dynamic> payload = {
         'title': title,
-        'status': 1, // Default to Backlog
+        'status': status,
+        'project': project,
       };
 
-      // Map our fields to API expected fields
-      if (description != null)
-        payload['content'] = description; // API uses content
-      if (dueDate != null) payload['deadline'] = dueDate; // API uses deadline
-      if (assignedTo != null) payload['user'] = assignedTo; // API uses user
-      payload['project'] = project;
+      // Add optional fields (already using API names)
+      if (content != null) payload['content'] = content;
+      if (deadline != null) payload['deadline'] = deadline;
+      if (user != null) payload['user'] = user;
+
+      // Log the payload for debugging
+      print('Creating task with payload: ${json.encode(payload)}');
 
       final response = await http.post(
         Uri.parse('$baseUrl/tasks/'),
@@ -138,13 +140,14 @@ class TaskService {
 
       if (response.statusCode == 201) {
         final data = json.decode(response.body);
+        print('Task created successfully: ${data['id']}');
         Task task = Task.fromJson(data);
 
         // Get user name if assigned
-        if (task.assignedTo != null) {
+        if (task.user != null) {
           try {
-            final user = await UserService.fetchUserById(task.assignedTo!);
-            task = task.copyWith(assignedToName: user.displayName);
+            final user = await UserService.fetchUserById(task.user!);
+            task = task.copyWith(userName: user.displayName);
           } catch (e) {
             print('Error fetching user: $e');
           }
@@ -154,7 +157,7 @@ class TaskService {
         if (task.project != null) {
           try {
             final project = await _projectService.fetchProjectById(
-              task.project!,
+              task.project,
             );
             task = task.copyWith(projectName: project.name);
           } catch (e) {
@@ -173,9 +176,9 @@ class TaskService {
           // Try again with the new token
           return createTask(
             title: title,
-            description: description,
-            dueDate: dueDate,
-            assignedTo: assignedTo,
+            content: content,
+            deadline: deadline,
+            user: user,
             project: project,
           );
         } else {
@@ -184,6 +187,10 @@ class TaskService {
           throw Exception('Authentication failed. Please login again.');
         }
       } else {
+        // Enhanced error message with response body
+        print(
+          'Failed to create task: ${response.statusCode} - ${response.body}',
+        );
         throw Exception(
           'Failed to create task: ${response.statusCode} - ${response.body}',
         );
@@ -194,26 +201,29 @@ class TaskService {
     }
   }
 
-  // Update an existing task with auto-retry
+  // Update an existing task with auto-retry, using API naming conventions
   Future<Task> updateTask(Task task) async {
     try {
       final headers = _getAuthHeaders();
 
-      // Format API request according to API structure
+      // Format API request using API field names directly
       final Map<String, dynamic> payload = {
         'title': task.title,
         'status': task.status,
+        'project': task.project,
       };
 
-      // Map our fields to API expected fields
-      if (task.description != null) payload['content'] = task.description;
-      if (task.dueDate != null) payload['deadline'] = task.dueDate;
-      if (task.assignedTo != null) payload['user'] = task.assignedTo;
-      if (task.project != null) payload['project'] = task.project;
+      // Add optional fields (already using API names)
+      if (task.content != null) payload['content'] = task.content;
+      if (task.deadline != null) payload['deadline'] = task.deadline;
+      if (task.user != null) payload['user'] = task.user;
       if (task.duration != null) payload['duration'] = task.duration;
       if (task.dependentOnTask != null)
         payload['dependent_on_task'] = task.dependentOnTask;
       if (task.event != null) payload['event'] = task.event;
+
+      // Log the payload for debugging
+      print('Updating task ${task.id} with payload: ${json.encode(payload)}');
 
       final response = await http.put(
         Uri.parse('$baseUrl/tasks/${task.id}/'),
@@ -224,7 +234,7 @@ class TaskService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return Task.fromJson(data)
-          ..assignedToName = task.assignedToName
+          ..userName = task.userName
           ..projectName = task.projectName;
       } else if (response.statusCode == 401) {
         // Token might be expired, try to refresh
@@ -241,6 +251,10 @@ class TaskService {
           throw Exception('Authentication failed. Please login again.');
         }
       } else {
+        // Enhanced error message with response body
+        print(
+          'Failed to update task: ${response.statusCode} - ${response.body}',
+        );
         throw Exception(
           'Failed to update task: ${response.statusCode} - ${response.body}',
         );
@@ -287,6 +301,10 @@ class TaskService {
           throw Exception('Authentication failed. Please login again.');
         }
       } else {
+        // Enhanced error message with response body
+        print(
+          'Failed to delete task: ${response.statusCode} - ${response.body}',
+        );
         throw Exception(
           'Failed to delete task: ${response.statusCode} - ${response.body}',
         );
@@ -306,18 +324,18 @@ class TaskService {
     // Process each task
     for (var task in tasks) {
       // Handle assigned user
-      if (task.assignedTo != null) {
-        if (userNames.containsKey(task.assignedTo)) {
+      if (task.user != null) {
+        if (userNames.containsKey(task.user)) {
           // Use cached name
-          task.assignedToName = userNames[task.assignedTo];
+          task.userName = userNames[task.user];
         } else {
           try {
-            final user = await UserService.fetchUserById(task.assignedTo!);
-            userNames[task.assignedTo!] = user.displayName;
-            task.assignedToName = user.displayName;
+            final user = await UserService.fetchUserById(task.user!);
+            userNames[task.user!] = user.displayName;
+            task.userName = user.displayName;
           } catch (e) {
-            print('Error fetching user ${task.assignedTo}: $e');
-            task.assignedToName = 'User #${task.assignedTo}';
+            print('Error fetching user ${task.user}: $e');
+            task.userName = 'User #${task.user}';
           }
         }
       }
@@ -330,9 +348,9 @@ class TaskService {
         } else {
           try {
             final project = await _projectService.fetchProjectById(
-              task.project!,
+              task.project,
             );
-            projectNames[task.project!] =
+            projectNames[task.project] =
                 project.name ?? 'Project #${task.project}';
             task.projectName = project.name;
           } catch (e) {

@@ -2,34 +2,34 @@
 class Task {
   final int id;
   final String title;
-  final String? description;
+  final String? content; // Renamed from description to match API
   final int status; // 1 = Backlog, 2 = In Progress, 3 = Done
   final int project;
-  final String? dueDate;
-  final int? assignedTo;
+  final String? deadline; // Renamed from dueDate to match API
+  final int? user; // Renamed from assignedTo to match API
   final String created;
   final int? duration;
   final int? dependentOnTask;
   final int? event;
 
   // Additional fields for UI display
-  String? assignedToName;
+  String? userName; // Renamed from assignedToName
   String? projectName;
   String? statusName;
 
   Task({
     required this.id,
     required this.title,
-    this.description,
+    this.content,
     required this.status,
-    this.dueDate,
-    this.assignedTo,
+    this.deadline,
+    this.user,
     required this.project,
     required this.created,
     this.duration,
     this.dependentOnTask,
     this.event,
-    this.assignedToName,
+    this.userName,
     this.projectName,
     this.statusName,
   });
@@ -38,10 +38,10 @@ class Task {
   // This is used when creating a task before it's saved to the backend
   factory Task.forCreation({
     required String title,
-    String? description,
+    String? content,
     int status = 1,
-    String? dueDate,
-    int? assignedTo,
+    String? deadline,
+    int? user,
     required int project,
     int? duration,
     int? dependentOnTask,
@@ -50,10 +50,10 @@ class Task {
     return Task(
       id: -1, // Temporary ID that will be replaced by the server
       title: title,
-      description: description,
+      content: content,
       status: status,
-      dueDate: dueDate,
-      assignedTo: assignedTo,
+      deadline: deadline,
+      user: user,
       project: project,
       created: DateTime.now().toIso8601String(),
       duration: duration,
@@ -69,12 +69,12 @@ class Task {
     return Task(
       id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
       title: json['title'] ?? 'Untitled Task',
-      description: json['content'], // API uses 'content' for description
+      content: json['content'], // API uses 'content'
       status: json['status'] ?? 1, // Default to Backlog (1) if not provided
-      dueDate: json['deadline'], // API uses 'deadline' for dueDate
-      assignedTo:
+      deadline: json['deadline'], // API uses 'deadline'
+      user:
           json['user'] !=
-                  null // API uses 'user' for assignedTo
+                  null // API uses 'user'
               ? (json['user'] is int
                   ? json['user']
                   : int.parse(json['user'].toString()))
@@ -84,13 +84,13 @@ class Task {
               ? (json['project'] is int
                   ? json['project']
                   : int.parse(json['project'].toString()))
-              : null,
+              : -1, // Default to -1 if no project is provided
       created: json['created'] ?? DateTime.now().toIso8601String(),
       duration: json['duration'],
       dependentOnTask: json['dependent_on_task'],
       event: json['event'],
       // Names will be filled in by the service
-      assignedToName: json['user_details']?['username'] ?? 'Unknown User',
+      userName: json['user_details']?['username'] ?? 'Unknown User',
       projectName: _extractProjectName(json),
       statusName: json['status_details']?['name'],
     );
@@ -109,33 +109,33 @@ class Task {
   Task copyWith({
     int? id,
     String? title,
-    String? description,
+    String? content,
     int? status,
     bool? completed,
-    String? dueDate,
-    int? assignedTo,
+    String? deadline,
+    int? user,
     int? project,
     String? created,
     int? duration,
     int? dependentOnTask,
     int? event,
-    String? assignedToName,
+    String? userName,
     String? projectName,
     String? statusName,
   }) {
     return Task(
       id: id ?? this.id,
       title: title ?? this.title,
-      description: description ?? this.description,
+      content: content ?? this.content,
       status: status ?? (completed != null ? (completed ? 3 : 1) : this.status),
-      dueDate: dueDate ?? this.dueDate,
-      assignedTo: assignedTo ?? this.assignedTo,
+      deadline: deadline ?? this.deadline,
+      user: user ?? this.user,
       project: project ?? this.project,
       created: created ?? this.created,
       duration: duration ?? this.duration,
       dependentOnTask: dependentOnTask ?? this.dependentOnTask,
       event: event ?? this.event,
-      assignedToName: assignedToName ?? this.assignedToName,
+      userName: userName ?? this.userName,
       projectName: projectName ?? this.projectName,
       statusName: statusName ?? this.statusName,
     );
