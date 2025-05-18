@@ -65,7 +65,11 @@ void main() {
 
       // Create a test project
       try {
-        final newProject = Project(organisationId: organisationId, priority: 1);
+        final newProject = Project(
+          organisationId: organisationId,
+          name: 'Test',
+          priority: 1,
+        );
 
         print('🆕 Creating new project for organisation $organisationId');
 
@@ -106,8 +110,11 @@ void main() {
 
       try {
         // Create a test project
-        final newProject = Project(organisationId: organisationId, priority: 1);
-
+        final newProject = Project(
+          organisationId: organisationId,
+          name: 'Test',
+          priority: 1,
+        );
         print('🆕 Creating project for update test');
 
         // Create the project
@@ -117,6 +124,7 @@ void main() {
         // Act - Update the project
         final updatedProject = Project(
           id: createdProject.id,
+          name: 'Test 2',
           organisationId: organisationId,
           priority: 2, // Changed priority
         );

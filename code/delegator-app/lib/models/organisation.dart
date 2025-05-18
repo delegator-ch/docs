@@ -2,10 +2,10 @@
 
 class Organisation {
   final int id;
-  final String name;
+  final String? name;
   final DateTime? since;
 
-  Organisation({required this.id, required this.name, this.since});
+  Organisation({required this.id, this.name, this.since});
 
   factory Organisation.fromJson(Map<String, dynamic> json) {
     return Organisation(

@@ -2,74 +2,233 @@
 
 import 'dart:async';
 import '../models/event.dart';
-import 'base_service.dart';
-import 'api_client.dart';
+import '../services/base_service.dart';
+import '../services/api_client.dart';
 import '../config/api_config.dart';
 
 /// Service for managing Event entities
+///
+/// This service provides methods for CRUD operations on Event entities,
+/// along with filtering and specialized queries.
 class EventService implements BaseService<Event> {
   final ApiClient _apiClient;
 
+  /// Creates a new EventService instance
   EventService({ApiClient? apiClient}) : _apiClient = apiClient ?? ApiClient();
 
+  /// Fetches all events
   @override
   Future<List<Event>> getAll() async {
-    final response = await _apiClient.get(ApiConfig.events);
-    return (response as List).map((json) => Event.fromJson(json)).toList();
+    try {
+      final response = await _apiClient.get(ApiConfig.events);
+
+      // Handle paginated response format
+      if (response is Map<String, dynamic> && response.containsKey('results')) {
+        final List<dynamic> results = response['results'];
+        return results.map((e) => Event.fromJson(e)).toList();
+      } else if (response is List) {
+        // Handle direct list response (for backward compatibility)
+        return response.map((e) => Event.fromJson(e)).toList();
+      } else {
+        throw Exception(
+          'Unexpected response format: ${response.runtimeType}. Expected paginated results.',
+        );
+      }
+    } on ApiException catch (e) {
+      _handleApiException('Failed to get all events', e);
+      return [];
+    } catch (e) {
+      throw Exception('Failed to get all events: $e');
+    }
   }
 
+  /// Fetches an event by ID
   @override
   Future<Event> getById(int id) async {
-    final response = await _apiClient.get('${ApiConfig.events}/$id');
-    return Event.fromJson(response);
+    if (id <= 0) {
+      throw ArgumentError('Event ID must be a positive integer');
+    }
+
+    try {
+      final response = await _apiClient.get('${ApiConfig.events}$id/');
+      return Event.fromJson(response);
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) {
+        throw Exception('Event with ID $id not found');
+      }
+      _handleApiException('Failed to get event with ID $id', e);
+      throw Exception('This line should not be reached');
+    } catch (e) {
+      throw Exception('Failed to get event with ID $id: $e');
+    }
   }
 
+  /// Creates a new event
   @override
   Future<Event> create(Event event) async {
-    final response = await _apiClient.post(ApiConfig.events, event.toJson());
-    return Event.fromJson(response);
+    _validateEvent(event);
+
+    try {
+      final response = await _apiClient.post(ApiConfig.events, event.toJson());
+      return Event.fromJson(response);
+    } on ApiException catch (e) {
+      _handleApiException('Failed to create event', e);
+      throw Exception('This line should not be reached');
+    } catch (e) {
+      throw Exception('Failed to create event: $e');
+    }
   }
 
+  /// Updates an existing event
   @override
   Future<Event> update(Event event) async {
     if (event.id == null) {
-      throw Exception('Cannot update an event without an ID');
+      throw ArgumentError('Cannot update an event without an ID');
     }
 
-    final response = await _apiClient.put(
-      '${ApiConfig.events}/${event.id}',
-      event.toJson(),
-    );
-    return Event.fromJson(response);
+    _validateEvent(event);
+
+    try {
+      final response = await _apiClient.put(
+        '${ApiConfig.events}${event.id}/',
+        event.toJson(),
+      );
+      return Event.fromJson(response);
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) {
+        throw Exception('Event with ID ${event.id} not found');
+      }
+      _handleApiException('Failed to update event', e);
+      throw Exception('This line should not be reached');
+    } catch (e) {
+      throw Exception('Failed to update event: $e');
+    }
   }
 
+  /// Deletes an event by ID
   @override
   Future<bool> delete(int id) async {
-    await _apiClient.delete('${ApiConfig.events}/$id');
-    return true;
+    if (id <= 0) {
+      throw ArgumentError('Event ID must be a positive integer');
+    }
+
+    try {
+      await _apiClient.delete('${ApiConfig.events}$id/');
+      return true;
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) {
+        throw Exception('Event with ID $id not found');
+      }
+      _handleApiException('Failed to delete event with ID $id', e);
+      return false;
+    } catch (e) {
+      throw Exception('Failed to delete event with ID $id: $e');
+    }
   }
 
-  /// Get events for a specific calendar
+  /// Get events by calendar ID
   Future<List<Event>> getByCalendarId(int calendarId) async {
-    final response = await _apiClient.get(
-      '${ApiConfig.events}?calendar=$calendarId',
-    );
-    return (response as List).map((json) => Event.fromJson(json)).toList();
+    if (calendarId <= 0) {
+      throw ArgumentError('Calendar ID must be a positive integer');
+    }
+
+    try {
+      final response = await _apiClient.get(
+        '${ApiConfig.events}?calendar=$calendarId',
+      );
+
+      // Handle paginated response format
+      if (response is Map<String, dynamic> && response.containsKey('results')) {
+        final List<dynamic> results = response['results'];
+        return results.map((e) => Event.fromJson(e)).toList();
+      } else if (response is List) {
+        // Handle direct list response (for backward compatibility)
+        return response.map((e) => Event.fromJson(e)).toList();
+      } else {
+        throw Exception(
+          'Unexpected response format: ${response.runtimeType}. Expected paginated results.',
+        );
+      }
+    } on ApiException catch (e) {
+      _handleApiException('Failed to get events for calendar $calendarId', e);
+      return [];
+    } catch (e) {
+      throw Exception('Failed to get events for calendar $calendarId: $e');
+    }
   }
 
-  /// Get events between two dates
-  Future<List<Event>> getByDateRange(DateTime start, DateTime end) async {
-    final formattedStart = start.toIso8601String();
-    final formattedEnd = end.toIso8601String();
-    final response = await _apiClient.get(
-      '${ApiConfig.events}?start_after=$formattedStart&end_before=$formattedEnd',
-    );
-    return (response as List).map((json) => Event.fromJson(json)).toList();
+  /// Get events by project ID
+  Future<List<Event>> getByProjectId(int projectId) async {
+    if (projectId <= 0) {
+      throw ArgumentError('Project ID must be a positive integer');
+    }
+
+    try {
+      final response = await _apiClient.get(
+        '${ApiConfig.events}?project=$projectId',
+      );
+
+      // Handle paginated response format
+      if (response is Map<String, dynamic> && response.containsKey('results')) {
+        final List<dynamic> results = response['results'];
+        return results.map((e) => Event.fromJson(e)).toList();
+      } else if (response is List) {
+        // Handle direct list response (for backward compatibility)
+        return response.map((e) => Event.fromJson(e)).toList();
+      } else {
+        throw Exception(
+          'Unexpected response format: ${response.runtimeType}. Expected paginated results.',
+        );
+      }
+    } on ApiException catch (e) {
+      _handleApiException('Failed to get events for project $projectId', e);
+      return [];
+    } catch (e) {
+      throw Exception('Failed to get events for project $projectId: $e');
+    }
   }
 
-  /// Get gig events only
-  Future<List<Event>> getGigsOnly() async {
-    final response = await _apiClient.get('${ApiConfig.events}?is_gig=true');
-    return (response as List).map((json) => Event.fromJson(json)).toList();
+  /// Get all events where is_gig is true
+  Future<List<Event>> getGigs() async {
+    try {
+      final response = await _apiClient.get('${ApiConfig.events}?is_gig=true');
+
+      // Handle paginated response format
+      if (response is Map<String, dynamic> && response.containsKey('results')) {
+        final List<dynamic> results = response['results'];
+        return results.map((e) => Event.fromJson(e)).toList();
+      } else if (response is List) {
+        // Handle direct list response (for backward compatibility)
+        return response.map((e) => Event.fromJson(e)).toList();
+      } else {
+        throw Exception(
+          'Unexpected response format: ${response.runtimeType}. Expected paginated results.',
+        );
+      }
+    } on ApiException catch (e) {
+      _handleApiException('Failed to get gigs', e);
+      return [];
+    } catch (e) {
+      throw Exception('Failed to get gigs: $e');
+    }
+  }
+
+  /// Validate event before sending to backend
+  void _validateEvent(Event event) {
+    if (event.title == null || event.title!.isEmpty) {
+      throw ArgumentError('Event title cannot be empty');
+    }
+    // Add more validation if needed
+  }
+
+  /// Handle API exceptions centrally
+  Never _handleApiException(String message, ApiException e) {
+    final errorMessage = '$message: [${e.statusCode}] ${e.message}';
+    throw Exception(errorMessage);
+  }
+
+  /// Dispose resources if necessary
+  void dispose() {
+    // If needed, clean up resources
   }
 }

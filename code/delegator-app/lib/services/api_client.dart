@@ -1,143 +1,159 @@
-// lib/services/api_client.dart
-
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 
-/// API Client that handles HTTP requests to the backend
 class ApiClient {
   final http.Client _httpClient;
   final String baseUrl;
-  final Map<String, String> _headers;
+  final Map<String, String> _defaultHeaders;
+  final bool enableLogging;
+
+  String? _authToken;
 
   ApiClient({
     http.Client? httpClient,
     String? baseUrl,
-    Map<String, String>? headers,
+    Map<String, String>? defaultHeaders,
+    this.enableLogging = true,
   }) : _httpClient = httpClient ?? http.Client(),
        baseUrl = baseUrl ?? ApiConfig.baseUrl,
-       _headers = headers ?? {'Content-Type': 'application/json'};
+       _defaultHeaders = defaultHeaders ?? {'Content-Type': 'application/json'};
 
-  /// Set the authorization token for subsequent requests
+  /// Set or update the auth token
   void setAuthToken(String token) {
-    _headers['Authorization'] = 'Bearer $token';
+    _authToken = token;
   }
 
-  /// GET request to fetch data
-  Future<dynamic> get(String endpoint) async {
-    final formattedEndpoint = _ensureTrailingSlash(endpoint);
-    print("📡 GET request to: $baseUrl/$formattedEndpoint");
+  /// GET request
+  Future<dynamic> get(String endpoint, {Map<String, String>? headers}) async {
+    final uri = Uri.parse(_buildUrl(endpoint));
+    _log("📡 GET $uri");
 
     final response = await _httpClient.get(
-      Uri.parse('$baseUrl/$formattedEndpoint'),
-      headers: _headers,
+      uri,
+      headers: _mergeHeaders(headers),
     );
 
-    print("📦 Response status: ${response.statusCode}");
     return _handleResponse(response);
   }
 
-  /// GET request to fetch data from a full URL
-  Future<dynamic> getFromUrl(String url) async {
-    print("📡 GET request to URL: $url");
-
-    final response = await _httpClient.get(Uri.parse(url), headers: _headers);
-
-    print("📦 Response status: ${response.statusCode}");
-    return _handleResponse(response);
-  }
-
-  /// POST request to create data
-  Future<dynamic> post(String endpoint, Map<String, dynamic> data) async {
-    final formattedEndpoint = _ensureTrailingSlash(endpoint);
-    print("📡 POST request to: $baseUrl/$formattedEndpoint");
-    print("📝 Request data: ${jsonEncode(data)}");
+  /// POST request
+  Future<dynamic> post(
+    String endpoint,
+    Object? body, {
+    Map<String, String>? headers,
+  }) async {
+    final uri = Uri.parse(_buildUrl(endpoint));
+    _log("📡 POST $uri");
+    _log("📝 Body: ${jsonEncode(body)}");
 
     final response = await _httpClient.post(
-      Uri.parse('$baseUrl/$formattedEndpoint'),
-      headers: _headers,
-      body: jsonEncode(data),
+      uri,
+      headers: _mergeHeaders(headers),
+      body: jsonEncode(body),
     );
 
-    print("📦 Response status: ${response.statusCode}");
     return _handleResponse(response);
   }
 
-  /// PUT request to update data
-  Future<dynamic> put(String endpoint, Map<String, dynamic> data) async {
-    final formattedEndpoint = _ensureTrailingSlash(endpoint);
-    print("📡 PUT request to: $baseUrl/$formattedEndpoint");
+  /// PUT request
+  Future<dynamic> put(
+    String endpoint,
+    Object? body, {
+    Map<String, String>? headers,
+  }) async {
+    final uri = Uri.parse(_buildUrl(endpoint));
+    _log("📡 PUT $uri");
+    _log("📝 Body: ${jsonEncode(body)}");
 
     final response = await _httpClient.put(
-      Uri.parse('$baseUrl/$formattedEndpoint'),
-      headers: _headers,
-      body: jsonEncode(data),
+      uri,
+      headers: _mergeHeaders(headers),
+      body: jsonEncode(body),
     );
 
-    print("📦 Response status: ${response.statusCode}");
     return _handleResponse(response);
   }
 
-  /// DELETE request to remove data
-  Future<dynamic> delete(String endpoint) async {
-    final formattedEndpoint = _ensureTrailingSlash(endpoint);
-    print("📡 DELETE request to: $baseUrl/$formattedEndpoint");
+  /// DELETE request
+  Future<dynamic> delete(
+    String endpoint, {
+    Map<String, String>? headers,
+  }) async {
+    final uri = Uri.parse(_buildUrl(endpoint));
+    _log("📡 DELETE $uri");
 
     final response = await _httpClient.delete(
-      Uri.parse('$baseUrl/$formattedEndpoint'),
-      headers: _headers,
+      uri,
+      headers: _mergeHeaders(headers),
     );
 
-    print("📦 Response status: ${response.statusCode}");
     return _handleResponse(response);
   }
 
-  /// Ensure endpoint has a trailing slash for Django REST Framework
-  String _ensureTrailingSlash(String endpoint) {
-    if (!endpoint.endsWith('/')) {
-      return '$endpoint/';
-    }
-    return endpoint;
+  /// Build full URL from endpoint
+  String _buildUrl(String endpoint) {
+    final cleanBase =
+        baseUrl.endsWith('/')
+            ? baseUrl.substring(0, baseUrl.length - 1)
+            : baseUrl;
+    final cleanEndpoint =
+        endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
+    return '$cleanBase/$cleanEndpoint';
   }
 
-  /// Handle HTTP response and convert to appropriate format
+  /// Combine default headers, token, and optional headers
+  Map<String, String> _mergeHeaders(Map<String, String>? customHeaders) {
+    final headers = Map<String, String>.from(_defaultHeaders);
+    if (_authToken != null) {
+      headers['Authorization'] = 'Bearer $_authToken';
+    }
+    if (customHeaders != null) {
+      headers.addAll(customHeaders);
+    }
+    return headers;
+  }
+
+  /// Handles API response with statusCode check + JSON decoding
   dynamic _handleResponse(http.Response response) {
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      if (response.body.isEmpty) return null;
+    _log("📦 Response: ${response.statusCode}");
 
-      final parsedJson = jsonDecode(response.body);
-      return parsedJson;
-    } else {
-      try {
-        final errorJson = jsonDecode(response.body);
-        print("❌ API Error: $errorJson");
-        throw ApiException(
-          statusCode: response.statusCode,
-          message: errorJson.toString(),
-        );
-      } catch (e) {
-        print("❌ API Error (raw): ${response.body}");
-        throw ApiException(
-          statusCode: response.statusCode,
-          message: response.body,
-        );
+    final isSuccess = response.statusCode >= 200 && response.statusCode < 300;
+
+    if (response.body.isEmpty) {
+      return isSuccess
+          ? null
+          : throw ApiException(response.statusCode, 'Empty response');
+    }
+
+    try {
+      final parsed = jsonDecode(response.body);
+
+      if (isSuccess) {
+        return parsed;
+      } else {
+        throw ApiException(response.statusCode, parsed.toString());
       }
+    } catch (e) {
+      throw ApiException(response.statusCode, 'Invalid JSON: ${response.body}');
     }
   }
 
-  /// Close the HTTP client when done
+  void _log(String message) {
+    if (enableLogging) print(message);
+  }
+
   void dispose() {
     _httpClient.close();
   }
 }
 
-/// Exception thrown when API requests fail
 class ApiException implements Exception {
   final int statusCode;
   final String message;
 
-  ApiException({required this.statusCode, required this.message});
+  ApiException(this.statusCode, this.message);
 
   @override
-  String toString() => 'ApiException: [$statusCode] $message';
+  String toString() => 'ApiException [$statusCode]: $message';
 }
