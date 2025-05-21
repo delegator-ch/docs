@@ -143,23 +143,25 @@ class IsProjectMember(BasePermission):
 
         # For objects with an event (like Setlist, Timetable)
         if hasattr(obj, 'event'):
-            # Check direct project access
-            related_projects = Project.objects.filter(event=obj.event)
-            if UserProject.objects.filter(
-                user=user,
-                project__in=related_projects
-            ).exists():
-                return True
-                
-            # Check organization access via event's calendar
-            if obj.event.calendar and hasattr(obj.event.calendar, 'organisation'):
-                org = obj.event.calendar.organisation
-                return UserOrganisation.objects.filter(
+            # If event is None, skip this check
+            if obj.event:
+                # Check direct project access
+                related_projects = Project.objects.filter(event=obj.event)
+                if UserProject.objects.filter(
                     user=user,
-                    organisation=org
-                ).exists()
-            
-        # For objects with direct project relationship
+                    project__in=related_projects
+                ).exists():
+                    return True
+                    
+                # Check organization access via event's calendar
+                if obj.event.calendar and hasattr(obj.event.calendar, 'organisation'):
+                    org = obj.event.calendar.organisation
+                    return UserOrganisation.objects.filter(
+                        user=user,
+                        organisation=org
+                    ).exists()
+        
+        # For objects with direct project relationship (like Task)
         if hasattr(obj, 'project'):
             # Check direct project access
             if UserProject.objects.filter(
@@ -168,7 +170,7 @@ class IsProjectMember(BasePermission):
             ).exists():
                 return True
                 
-            # Check organization access
+            # Check organization access via project
             if hasattr(obj.project, 'organisation'):
                 return UserOrganisation.objects.filter(
                     user=user,
