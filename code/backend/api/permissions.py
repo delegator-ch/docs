@@ -1,7 +1,6 @@
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import BasePermission, SAFE_METHODS
 from rest_framework.exceptions import PermissionDenied
 from rest_framework import permissions
-
 
 from .models import Calendar, Event, UserProject, UserOrganisation, Project
 from .utils import (
