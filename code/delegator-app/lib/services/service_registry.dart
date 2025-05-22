@@ -1,5 +1,8 @@
 // lib/services/service_registry.dart
 
+import 'package:delegator/services/chat_service.dart';
+import 'package:delegator/services/message_service.dart';
+
 import 'api_client.dart';
 import 'auth_service.dart';
 import 'project_service.dart';
@@ -24,9 +27,14 @@ class ServiceRegistry {
   late final ProjectService _projectService;
   late final EventService _eventService;
   late final TaskService _taskService;
+  late final MessageService _messageService;
+  late final ChatService _chatService;
 
   // Initialization flag
   bool _isInitialized = false;
+
+  static const testUsername = 'test_user_2';
+  static const testPassword = 'sml12345';
 
   /// Initialize the service registry with all services
   Future<void> initialize() async {
@@ -40,11 +48,15 @@ class ServiceRegistry {
     _projectService = ProjectService(apiClient: _apiClient);
     _eventService = EventService(apiClient: _apiClient);
     _taskService = TaskService(apiClient: _apiClient);
+    _messageService = MessageService(apiClient: _apiClient);
+    _chatService = ChatService(apiClient: _apiClient);
 
     // Initialize authentication
     await _authService.init();
+    // Login to get proper authentication
 
     _isInitialized = true;
+    await authService.login(testUsername, testPassword);
   }
 
   /// Get the API client
@@ -75,6 +87,16 @@ class ServiceRegistry {
   TaskService get taskService {
     _checkInitialization();
     return _taskService;
+  }
+
+  ChatService get chatService {
+    _checkInitialization();
+    return _chatService;
+  }
+
+  MessageService get messageService {
+    _checkInitialization();
+    return _messageService;
   }
 
   /// Check if the registry is initialized
