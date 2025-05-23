@@ -5,6 +5,8 @@ import '../services/service_registry.dart';
 import '../models/project.dart';
 import '../models/task.dart';
 import '../models/event.dart';
+import 'project_detail_page.dart';
+import 'projects_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -189,11 +191,19 @@ class _HomePageState extends State<HomePage> {
     return Row(
       children: [
         Expanded(
-          child: _buildStatCard(
-            'Projects',
-            _recentProjects.length.toString(),
-            Icons.work,
-            Colors.green,
+          child: GestureDetector(
+            onTap: () {
+              // Navigate to all projects page
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const ProjectsPage()),
+              );
+            },
+            child: _buildStatCard(
+              'Projects',
+              _recentProjects.length.toString(),
+              Icons.work,
+              Colors.green,
+            ),
           ),
         ),
         const SizedBox(width: 12),
@@ -326,11 +336,27 @@ class _HomePageState extends State<HomePage> {
               children: [
                 Icon(Icons.work, color: Colors.green),
                 const SizedBox(width: 8),
-                Text(
-                  'Recent Projects',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Text(
+                    'Recent Projects',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    // Navigate to projects page
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const ProjectsPage(),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    child: Icon(Icons.add, color: Colors.green, size: 20),
                   ),
                 ),
               ],
@@ -362,9 +388,22 @@ class _HomePageState extends State<HomePage> {
       subtitle: Text('Priority: ${project.priority}'),
       trailing: Icon(Icons.arrow_forward_ios, size: 16),
       onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Open project: ${project.name}')),
-        );
+        // Navigate to project detail page
+        if (project.id != null) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder:
+                  (context) => ProjectDetailPage(
+                    projectId: project.id!,
+                    projectName: project.name,
+                  ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Project ID not available')),
+          );
+        }
       },
     );
   }

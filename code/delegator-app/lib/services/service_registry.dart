@@ -1,4 +1,4 @@
-// lib/services/service_registry.dart
+// lib/services/service_registry.dart (Updated)
 
 import 'package:delegator/services/chat_service.dart';
 import 'package:delegator/services/message_service.dart';
@@ -33,12 +33,11 @@ class ServiceRegistry {
   // Initialization flag
   bool _isInitialized = false;
 
-  static const testUsername = 'test_user_2';
-  static const testPassword = 'sml12345';
-
   /// Initialize the service registry with all services
   Future<void> initialize() async {
     if (_isInitialized) return;
+
+    print("🚀 Initializing ServiceRegistry...");
 
     // Create API client first
     _apiClient = ApiClient();
@@ -51,12 +50,8 @@ class ServiceRegistry {
     _messageService = MessageService(apiClient: _apiClient);
     _chatService = ChatService(apiClient: _apiClient);
 
-    // Initialize authentication
-    await _authService.init();
-    // Login to get proper authentication
-
     _isInitialized = true;
-    await authService.login(testUsername, testPassword);
+    print("✅ ServiceRegistry initialized successfully");
   }
 
   /// Get the API client
@@ -89,14 +84,22 @@ class ServiceRegistry {
     return _taskService;
   }
 
+  /// Get the chat service
   ChatService get chatService {
     _checkInitialization();
     return _chatService;
   }
 
+  /// Get the message service
   MessageService get messageService {
     _checkInitialization();
     return _messageService;
+  }
+
+  /// Check if user is currently logged in
+  Future<bool> isLoggedIn() async {
+    _checkInitialization();
+    return await _authService.isLoggedIn();
   }
 
   /// Check if the registry is initialized
@@ -112,9 +115,11 @@ class ServiceRegistry {
   void dispose() {
     if (!_isInitialized) return;
 
+    print("🧹 Disposing ServiceRegistry...");
     _authService.dispose();
     _apiClient.dispose();
 
     _isInitialized = false;
+    print("✅ ServiceRegistry disposed");
   }
 }

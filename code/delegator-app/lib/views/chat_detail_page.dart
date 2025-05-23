@@ -1,9 +1,10 @@
-// views/chat_detail_page.dart
+// lib/views/chat_detail_page.dart
 
 import 'package:flutter/material.dart';
 import '../services/service_registry.dart';
 import '../models/message.dart';
 import '../models/user.dart';
+import 'chat_info_page.dart';
 
 class ChatDetailPage extends StatefulWidget {
   final int chatId;
@@ -118,91 +119,72 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     });
   }
 
+  void _navigateToChatInfo() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder:
+            (context) =>
+                ChatInfoPage(chatId: widget.chatId, chatName: widget.chatName),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
-        title: Row(
-          children: [
-            CircleAvatar(
-              radius: 20,
-              backgroundColor: Colors.grey[300],
-              backgroundImage:
-                  widget.avatarUrl != null
-                      ? NetworkImage(widget.avatarUrl!)
-                      : null,
-              child:
-                  widget.avatarUrl == null
-                      ? Text(
-                        widget.chatName.isNotEmpty
-                            ? widget.chatName[0].toUpperCase()
-                            : '?',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black54,
-                        ),
-                      )
-                      : null,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.chatName,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const Text(
-                    'Online',
-                    style: TextStyle(fontSize: 12, color: Colors.white70),
-                  ),
-                ],
+        title: GestureDetector(
+          onTap: _navigateToChatInfo,
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: Colors.grey[300],
+                backgroundImage:
+                    widget.avatarUrl != null
+                        ? NetworkImage(widget.avatarUrl!)
+                        : null,
+                child:
+                    widget.avatarUrl == null
+                        ? Text(
+                          widget.chatName.isNotEmpty
+                              ? widget.chatName[0].toUpperCase()
+                              : '?',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black54,
+                          ),
+                        )
+                        : null,
               ),
-            ),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.chatName,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const Text(
+                      'Online',
+                      style: TextStyle(fontSize: 12, color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.videocam),
-            onPressed: () {
-              // TODO: Implement video call
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.call),
-            onPressed: () {
-              // TODO: Implement voice call
-            },
-          ),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              // TODO: Handle menu actions
-            },
-            itemBuilder:
-                (context) => [
-                  const PopupMenuItem(
-                    value: 'view_contact',
-                    child: Text('View Contact'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'media',
-                    child: Text('Media & Files'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'mute',
-                    child: Text('Mute Notifications'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'disappearing',
-                    child: Text('Disappearing Messages'),
-                  ),
-                ],
+            icon: const Icon(Icons.settings),
+            onPressed: _navigateToChatInfo,
           ),
         ],
       ),

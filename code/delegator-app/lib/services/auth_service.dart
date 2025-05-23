@@ -1,46 +1,104 @@
-// lib/services/auth_service.dart (updated for JWT)
+// lib/services/auth_service.dart (Enhanced version)
 
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
 import 'api_client.dart';
 import '../config/api_config.dart';
 
-/// Service for handling authentication with JWT tokens
+/// Service for handling authentication with JWT tokens and secure storage
 class AuthService {
   final ApiClient _apiClient;
 
-  // Token storage keys
+  // Secure storage for sensitive data
+  static const _secureStorage = FlutterSecureStorage(
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+    ),
+  );
+
+  // Token storage keys (in secure storage)
   static const _accessTokenKey = 'access_token';
   static const _refreshTokenKey = 'refresh_token';
   static const _userKey = 'current_user';
+
+  // App preferences (in shared preferences - non-sensitive)
+  static const _rememberMeKey = 'remember_me';
+  static const _lastUsernameKey = 'last_username';
 
   // Stream controller for authentication state changes
   final _authStateController = StreamController<bool>.broadcast();
   Stream<bool> get authStateChanges => _authStateController.stream;
 
+  // Current user cache
+  User? _currentUser;
+
   AuthService({ApiClient? apiClient}) : _apiClient = apiClient ?? ApiClient();
 
   /// Initialize the service and check if user is already logged in
   Future<bool> init() async {
-    final prefs = await SharedPreferences.getInstance();
-    final accessToken = prefs.getString(_accessTokenKey);
+    try {
+      print("🔧 Initializing AuthService...");
 
-    if (accessToken != null) {
-      _apiClient.setAuthToken(accessToken);
-      _authStateController.add(true);
-      return true;
+      // Check if user wants to be remembered
+      final prefs = await SharedPreferences.getInstance();
+      final rememberMe = prefs.getBool(_rememberMeKey) ?? false;
+
+      if (!rememberMe) {
+        print("👤 Remember Me is disabled, user needs to login manually");
+        return false;
+      }
+
+      // Try to restore session from secure storage
+      final accessToken = await _secureStorage.read(key: _accessTokenKey);
+
+      if (accessToken != null) {
+        print("🔑 Found stored access token, attempting to restore session");
+
+        // Set token in API client
+        _apiClient.setAuthToken(accessToken);
+
+        // Try to get current user to validate token
+        try {
+          await getCurrentUser();
+          print("✅ Session restored successfully");
+          _authStateController.add(true);
+          return true;
+        } catch (e) {
+          print("🔄 Access token invalid, trying to refresh...");
+
+          // Try to refresh the token
+          final refreshSuccess = await refreshToken();
+          if (refreshSuccess) {
+            print("✅ Session restored via token refresh");
+            _authStateController.add(true);
+            return true;
+          } else {
+            print("❌ Token refresh failed, user needs to login");
+            await _clearSecureStorage();
+            return false;
+          }
+        }
+      } else {
+        print("👤 No stored tokens found, user needs to login");
+        return false;
+      }
+    } catch (e) {
+      print("❌ Error during auth initialization: $e");
+      await _clearSecureStorage();
+      return false;
     }
-    return false;
   }
 
   /// Login with username and password
-  Future<User> login(String username, String password) async {
+  Future<User> login(String username, String password,
+      {bool rememberMe = true}) async {
     print("🔄 Attempting login for user: $username");
 
     final response = await _apiClient.post(
-      ApiConfig.token, // Update this to match your actual token endpoint
+      ApiConfig.token,
       {'username': username, 'password': password},
     );
 
@@ -62,21 +120,24 @@ class AuthService {
         email: userData['email'],
       );
 
+      // Store tokens securely
+      await _storeTokensSecurely(accessToken, refreshToken, userData);
+
+      // Store preferences
       final prefs = await SharedPreferences.getInstance();
-
-      // Store tokens in preferences
-      await prefs.setString(_accessTokenKey, accessToken);
-      await prefs.setString(_refreshTokenKey, refreshToken);
-
-      // Store user data
-      await prefs.setString(_userKey, jsonEncode(userData));
+      await prefs.setBool(_rememberMeKey, rememberMe);
+      await prefs.setString(_lastUsernameKey, username);
 
       // Set token in API client
       _apiClient.setAuthToken(accessToken);
 
+      // Cache current user
+      _currentUser = user;
+
       // Notify listeners that auth state changed
       _authStateController.add(true);
 
+      print("✅ Login completed successfully");
       return user;
     } else {
       print("❌ Login failed - tokens not found in response");
@@ -86,24 +147,28 @@ class AuthService {
 
   /// Refresh the access token using the refresh token
   Future<bool> refreshToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final refreshToken = prefs.getString(_refreshTokenKey);
-
-    if (refreshToken == null) {
-      return false;
-    }
-
     try {
+      final refreshToken = await _secureStorage.read(key: _refreshTokenKey);
+
+      if (refreshToken == null) {
+        print("❌ No refresh token available");
+        return false;
+      }
+
+      print("🔄 Attempting to refresh access token");
+
       final response = await _apiClient.post(
-        ApiConfig.refreshToken, // Update this to match your refresh endpoint
+        ApiConfig.refreshToken,
         {'refresh': refreshToken},
       );
 
       final newAccessToken = response['access'];
 
       if (newAccessToken != null) {
-        // Store the new access token
-        await prefs.setString(_accessTokenKey, newAccessToken);
+        print("✅ Access token refreshed successfully");
+
+        // Store the new access token securely
+        await _secureStorage.write(key: _accessTokenKey, value: newAccessToken);
 
         // Update the API client
         _apiClient.setAuthToken(newAccessToken);
@@ -111,13 +176,105 @@ class AuthService {
         return true;
       }
 
+      print("❌ Token refresh failed - no new access token received");
       return false;
     } catch (e) {
-      print("🔄 Token refresh failed: $e");
-      // If refresh fails, log out the user
+      print("❌ Token refresh failed: $e");
+      // If refresh fails, clear stored data and require re-login
       await logout();
       return false;
     }
+  }
+
+  /// Logout the current user
+  Future<void> logout() async {
+    print("🚪 Logging out user");
+
+    // Clear secure storage
+    await _clearSecureStorage();
+
+    // Clear current user cache
+    _currentUser = null;
+
+    // Clear API client token
+    _apiClient.setAuthToken('');
+
+    // Optionally clear preferences (keep last username for convenience)
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_rememberMeKey, false);
+
+    // Notify listeners that auth state changed
+    _authStateController.add(false);
+
+    print("✅ Logout completed");
+  }
+
+  /// Get the current logged in user
+  Future<User?> getCurrentUser() async {
+    // Return cached user if available
+    if (_currentUser != null) {
+      return _currentUser;
+    }
+
+    // Try to get user data from secure storage
+    final userDataString = await _secureStorage.read(key: _userKey);
+
+    if (userDataString != null) {
+      try {
+        final userMap = jsonDecode(userDataString) as Map<String, dynamic>;
+        _currentUser = User(
+          id: userMap['user_id'],
+          username: userMap['username'] ?? '',
+          email: userMap['email'],
+        );
+        return _currentUser;
+      } catch (e) {
+        print("❌ Error parsing stored user data: $e");
+        await _clearSecureStorage();
+        return null;
+      }
+    }
+
+    return null;
+  }
+
+  /// Check if user is logged in
+  Future<bool> isLoggedIn() async {
+    final accessToken = await _secureStorage.read(key: _accessTokenKey);
+    return accessToken != null;
+  }
+
+  /// Get the last used username for convenience
+  Future<String?> getLastUsername() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_lastUsernameKey);
+  }
+
+  /// Check if remember me is enabled
+  Future<bool> isRememberMeEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_rememberMeKey) ?? false;
+  }
+
+  /// Store tokens and user data securely
+  Future<void> _storeTokensSecurely(String accessToken, String refreshToken,
+      Map<String, dynamic> userData) async {
+    await Future.wait([
+      _secureStorage.write(key: _accessTokenKey, value: accessToken),
+      _secureStorage.write(key: _refreshTokenKey, value: refreshToken),
+      _secureStorage.write(key: _userKey, value: jsonEncode(userData)),
+    ]);
+    print("🔐 Tokens stored securely");
+  }
+
+  /// Clear all secure storage data
+  Future<void> _clearSecureStorage() async {
+    await Future.wait([
+      _secureStorage.delete(key: _accessTokenKey),
+      _secureStorage.delete(key: _refreshTokenKey),
+      _secureStorage.delete(key: _userKey),
+    ]);
+    print("🧹 Secure storage cleared");
   }
 
   /// Decode JWT token to get user data
@@ -135,40 +292,16 @@ class AuthService {
     return payloadMap;
   }
 
-  /// Logout the current user
-  Future<void> logout() async {
+  /// Clear all authentication data (for debugging/testing)
+  Future<void> clearAllAuthData() async {
+    await _clearSecureStorage();
     final prefs = await SharedPreferences.getInstance();
-
-    // Clear stored tokens and user data
-    await prefs.remove(_accessTokenKey);
-    await prefs.remove(_refreshTokenKey);
-    await prefs.remove(_userKey);
-
-    // Notify listeners that auth state changed
+    await prefs.remove(_rememberMeKey);
+    await prefs.remove(_lastUsernameKey);
+    _currentUser = null;
+    _apiClient.setAuthToken('');
     _authStateController.add(false);
-  }
-
-  /// Get the current logged in user
-  Future<User?> getCurrentUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    final userData = prefs.getString(_userKey);
-
-    if (userData != null) {
-      Map<String, dynamic> userMap = jsonDecode(userData);
-      return User(
-        id: userMap['user_id'],
-        username: userMap['username'] ?? '',
-        email: userMap['email'],
-      );
-    }
-    return null;
-  }
-
-  /// Check if user is logged in
-  Future<bool> isLoggedIn() async {
-    final prefs = await SharedPreferences.getInstance();
-    final accessToken = prefs.getString(_accessTokenKey);
-    return accessToken != null;
+    print("🧹 All authentication data cleared");
   }
 
   /// Dispose resources
