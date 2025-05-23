@@ -205,6 +205,14 @@ class Event(models.Model):
     def __str__(self):
         return f"Event on {self.start.strftime('%H:%M')} - {self.end.strftime('%H:%M')}"
 
+#Backlog, in-progress
+#Not editable by normal users
+class Status(models.Model):
+    name = models.CharField(max_length=100)
+    
+    def __str__(self):
+        return self.name
+
 # Only access (CRUD) on projectes your are added to
 class Project(models.Model):
 
@@ -213,6 +221,8 @@ class Project(models.Model):
         through='UserProject',
         related_name='projects'
     )    
+
+    status = models.ForeignKey(Status, on_delete=models.CASCADE, blank=True)
     name = models.CharField(max_length=255)
     event = models.ForeignKey(Event, on_delete=models.SET_NULL, null=True, blank=True)
     deadline = models.DateTimeField(null=True, blank=True)
@@ -353,14 +363,6 @@ class History(models.Model):
     
     def __str__(self):
         return f"{self.user} - {self.activity}"
-
-#Backlog, in-progress
-#Not editable by normal users
-class Status(models.Model):
-    name = models.CharField(max_length=100)
-    
-    def __str__(self):
-        return self.name
 
 # Only access (CRUD) on projectes your are added to
 class Task(models.Model):
