@@ -11,7 +11,7 @@ class Project {
   final dynamic eventDetails;
   final int organisationId;
   final Organisation?
-  organisation; // Changed from Map<String, dynamic>? to Organisation
+      organisation; // Changed from Map<String, dynamic>? to Organisation
 
   Project({
     this.id,

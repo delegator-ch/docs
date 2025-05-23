@@ -201,7 +201,7 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Project
-        fields = ['id', 'event', 'deadline', 'priority', 'event_details', 'tasks']
+        fields = ['id', 'event', 'deadline', 'priority', 'event_details', 'tasks', 'organisation', 'name']
 
 class EventDetailSerializer(serializers.ModelSerializer):
     calendar_details = CalendarSerializer(source='calendar', read_only=True)

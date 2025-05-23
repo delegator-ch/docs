@@ -213,7 +213,7 @@ class Project(models.Model):
         through='UserProject',
         related_name='projects'
     )    
-
+    name = models.CharField(max_length=255)
     event = models.ForeignKey(Event, on_delete=models.SET_NULL, null=True, blank=True)
     deadline = models.DateTimeField(null=True, blank=True)
     priority = models.IntegerField(default=0)

@@ -104,6 +104,97 @@ void main() {
       }
     });
 
+    // Add this test to your existing project_service_integration_test.dart file
+// within the 'ProjectService Integration Tests' group
+
+    test('getById should return specific project from real backend', () async {
+      // First, create a project to ensure we have one to fetch
+      final organisationId = 5; // Based on your existing test pattern
+
+      try {
+        // Create a test project first
+        final newProject = Project(
+          organisationId: organisationId,
+          name: 'Test Project for GetById',
+          priority: 1,
+        );
+
+        print('🆕 Creating project for getById test');
+        final createdProject = await projectService.create(newProject);
+        print('✅ Created project with ID: ${createdProject.id}');
+
+        // Act - Get the project by ID
+        print('🔍 Fetching project by ID: ${createdProject.id}');
+        final fetchedProject = await projectService.getById(createdProject.id!);
+
+        // Assert
+        print('✅ Successfully fetched project by ID');
+        expect(fetchedProject, isNotNull);
+        expect(fetchedProject.id, equals(createdProject.id));
+        expect(fetchedProject.name, equals('Test Project for GetById'));
+        expect(fetchedProject.organisationId, equals(organisationId));
+        expect(fetchedProject.priority, equals(1));
+
+        print('✅ All project properties match expected values');
+
+        // Clean up - delete the test project
+        print('🧹 Cleaning up - deleting test project');
+        await projectService.delete(createdProject.id!);
+        print('✅ Test project deleted');
+      } catch (e) {
+        print('❌ GetById test failed: $e');
+        fail('GetById test failed: $e');
+      }
+    });
+
+    test('getById should throw exception for non-existent project', () async {
+      try {
+        // Use a very high ID that shouldn't exist
+        final nonExistentId = 999999;
+
+        print(
+            '🔍 Attempting to fetch non-existent project with ID: $nonExistentId');
+
+        // Act & Assert - This should throw an exception
+        await expectLater(
+          () => projectService.getById(nonExistentId),
+          throwsA(isA<Exception>()),
+        );
+
+        print('✅ Correctly threw exception for non-existent project');
+      } catch (e) {
+        print('❌ Non-existent project test failed: $e');
+        fail('Non-existent project test failed: $e');
+      }
+    });
+
+    test('getById should throw ArgumentError for invalid ID', () async {
+      try {
+        print('🔍 Testing invalid ID (0)');
+
+        // Act & Assert - This should throw an ArgumentError
+        await expectLater(
+          () => projectService.getById(0),
+          throwsA(isA<ArgumentError>()),
+        );
+
+        print('✅ Correctly threw ArgumentError for ID = 0');
+
+        print('🔍 Testing invalid ID (-1)');
+
+        // Act & Assert - This should also throw an ArgumentError
+        await expectLater(
+          () => projectService.getById(-1),
+          throwsA(isA<ArgumentError>()),
+        );
+
+        print('✅ Correctly threw ArgumentError for negative ID');
+      } catch (e) {
+        print('❌ Invalid ID test failed: $e');
+        fail('Invalid ID test failed: $e');
+      }
+    });
+
     test('update project', () async {
       // For this test, we'll use a fixed organisation ID
       final organisationId = 5; // Based on the API response you provided
