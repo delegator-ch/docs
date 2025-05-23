@@ -182,26 +182,33 @@ class ProjectService implements BaseService<Project> {
     }
   }
 
-  /// Get projects with a specific status
+  /// Get projects with a specific status (updated to use int instead of string)
   ///
-  /// Returns a list of projects with the specified [status]
-  Future<List<Project>> getByStatus(String status) async {
-    if (status.isEmpty) {
-      throw ArgumentError('Status cannot be empty');
+  /// Returns a list of projects with the specified [statusId]
+  Future<List<Project>> getByStatus(int statusId) async {
+    if (statusId <= 0) {
+      throw ArgumentError('Status ID must be a positive integer');
     }
 
     try {
       final response = await _apiClient.get(
-        '${ApiConfig.projects}?status=$status',
+        '${ApiConfig.projects}?status=$statusId',
       );
 
       final List<dynamic> projectsJson = response['results'] as List<dynamic>;
       return projectsJson.map((json) => Project.fromJson(json)).toList();
     } on ApiException catch (e) {
-      _handleApiException('Failed to get projects with status $status', e);
+      _handleApiException('Failed to get projects with status $statusId', e);
     } catch (e) {
-      throw Exception('Failed to get projects with status $status: $e');
+      throw Exception('Failed to get projects with status $statusId: $e');
     }
+  }
+
+  /// Get projects with status 2 specifically
+  ///
+  /// Returns a list of projects with status 2
+  Future<List<Project>> getActiveProjects() async {
+    return [...await getByStatus(2), ...await getByStatus(1)];
   }
 
   /// Search projects by name or description

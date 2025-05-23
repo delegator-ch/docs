@@ -19,7 +19,7 @@ class _HomePageState extends State<HomePage> {
   bool _isLoading = true;
   String? _errorMessage;
 
-  List<Project> _recentProjects = [];
+  List<Project> _activeProjects = [];
   List<Task> _upcomingTasks = [];
   List<Event> _todayEvents = [];
 
@@ -36,9 +36,9 @@ class _HomePageState extends State<HomePage> {
     });
 
     try {
-      // Load data in parallel
+      // Load data in parallel - get only active projects (status 2)
       final futures = await Future.wait([
-        ServiceRegistry().projectService.getAll(),
+        ServiceRegistry().projectService.getByStatus(2), // Only active projects
         ServiceRegistry().taskService.getAll(),
         ServiceRegistry().eventService.getAll(),
       ]);
@@ -48,15 +48,14 @@ class _HomePageState extends State<HomePage> {
       final events = futures[2] as List<Event>;
 
       setState(() {
-        _recentProjects = projects.take(5).toList();
+        _activeProjects = projects.take(5).toList();
         _upcomingTasks = tasks.take(5).toList();
-        _todayEvents =
-            events.where((event) {
-              final today = DateTime.now();
-              return event.start.day == today.day &&
-                  event.start.month == today.month &&
-                  event.start.year == today.year;
-            }).toList();
+        _todayEvents = events.where((event) {
+          final today = DateTime.now();
+          return event.start.day == today.day &&
+              event.start.month == today.month &&
+              event.start.year == today.year;
+        }).toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -140,7 +139,7 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: 20),
             _buildTodayEventsCard(),
             const SizedBox(height: 20),
-            _buildRecentProjectsCard(),
+            _buildActiveProjectsCard(),
             const SizedBox(height: 20),
             _buildUpcomingTasksCard(),
           ],
@@ -193,14 +192,14 @@ class _HomePageState extends State<HomePage> {
         Expanded(
           child: GestureDetector(
             onTap: () {
-              // Navigate to all projects page
+              // Navigate to active projects page
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (context) => const ProjectsPage()),
               );
             },
             child: _buildStatCard(
-              'Projects',
-              _recentProjects.length.toString(),
+              'Active Projects',
+              _activeProjects.length.toString(),
               Icons.work,
               Colors.green,
             ),
@@ -325,7 +324,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildRecentProjectsCard() {
+  Widget _buildActiveProjectsCard() {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -338,7 +337,7 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Recent Projects',
+                    'Active Projects (Status 2)',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -356,19 +355,59 @@ class _HomePageState extends State<HomePage> {
                   },
                   child: Container(
                     padding: const EdgeInsets.all(8),
-                    child: Icon(Icons.add, color: Colors.green, size: 20),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'View All',
+                          style: TextStyle(
+                            color: Colors.green[700],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(Icons.arrow_forward_ios,
+                            color: Colors.green[700], size: 16),
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            if (_recentProjects.isEmpty)
-              Text(
-                'No projects available',
-                style: TextStyle(color: Colors.grey[600]),
+            if (_activeProjects.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: Column(
+                  children: [
+                    Icon(Icons.work_off, color: Colors.grey[400], size: 32),
+                    const SizedBox(height: 8),
+                    Text(
+                      'No active projects',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Projects with status 2 will appear here',
+                      style: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
               )
             else
-              ..._recentProjects
+              ..._activeProjects
                   .map((project) => _buildProjectTile(project))
                   .toList(),
           ],
@@ -380,23 +419,54 @@ class _HomePageState extends State<HomePage> {
   Widget _buildProjectTile(Project project) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: CircleAvatar(
-        backgroundColor: Colors.green[100],
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.green[100],
+          borderRadius: BorderRadius.circular(8),
+        ),
         child: Icon(Icons.work, color: Colors.green[700]),
       ),
       title: Text(project.name ?? 'Untitled Project'),
-      subtitle: Text('Priority: ${project.priority}'),
+      subtitle: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.green[50],
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Colors.green[200]!),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.play_arrow, size: 12, color: Colors.green[700]),
+                const SizedBox(width: 2),
+                Text(
+                  'ACTIVE',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.green[700],
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text('Priority: ${_getPriorityText(project.priority)}'),
+        ],
+      ),
       trailing: Icon(Icons.arrow_forward_ios, size: 16),
       onTap: () {
         // Navigate to project detail page
         if (project.id != null) {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder:
-                  (context) => ProjectDetailPage(
-                    projectId: project.id!,
-                    projectName: project.name,
-                  ),
+              builder: (context) => ProjectDetailPage(
+                projectId: project.id!,
+                projectName: project.name,
+              ),
             ),
           );
         } else {
@@ -450,10 +520,9 @@ class _HomePageState extends State<HomePage> {
         child: Icon(Icons.task, color: Colors.orange[700]),
       ),
       title: Text(task.title),
-      subtitle:
-          task.deadline != null
-              ? Text('Due: ${_formatDate(task.deadline!)}')
-              : null,
+      subtitle: task.deadline != null
+          ? Text('Due: ${_formatDate(task.deadline!)}')
+          : null,
       trailing: Icon(Icons.arrow_forward_ios, size: 16),
       onTap: () {
         ScaffoldMessenger.of(
@@ -461,6 +530,23 @@ class _HomePageState extends State<HomePage> {
         ).showSnackBar(SnackBar(content: Text('Open task: ${task.title}')));
       },
     );
+  }
+
+  String _getPriorityText(int priority) {
+    switch (priority) {
+      case 1:
+        return 'URGENT';
+      case 2:
+        return 'HIGH';
+      case 3:
+        return 'MEDIUM';
+      case 4:
+        return 'LOW';
+      case 5:
+        return 'LOWEST';
+      default:
+        return 'NONE';
+    }
   }
 
   String _formatTime(DateTime dateTime) {

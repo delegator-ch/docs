@@ -40,12 +40,22 @@ class _ProjectsPageState extends State<ProjectsPage> {
     });
 
     try {
-      final projects = await ServiceRegistry().projectService.getAll();
+      // Load only projects with status 2
+      final projects = await ServiceRegistry().projectService.getByStatus(2);
+
+      // Debug logging
+      print('📊 Loaded ${projects.length} projects with status 2');
+      for (final project in projects) {
+        print(
+            'Project: ${project.name}, Status: ${project.status}, Priority: ${project.priority}');
+      }
+
       setState(() {
         _projects = projects;
         _isLoading = false;
       });
     } catch (e) {
+      print('❌ Error loading projects: $e');
       setState(() {
         _errorMessage = e.toString();
         _isLoading = false;
@@ -68,7 +78,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Projects'),
+        title: const Text('Active Projects'),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
         actions: [
@@ -82,10 +92,74 @@ class _ProjectsPageState extends State<ProjectsPage> {
               );
             },
           ),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              switch (value) {
+                case 'all':
+                  _loadAllProjects();
+                  break;
+                case 'status2':
+                  _loadProjects();
+                  break;
+                case 'status1':
+                  _loadProjectsByStatus(1);
+                  break;
+                case 'status3':
+                  _loadProjectsByStatus(3);
+                  break;
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'status2',
+                child: Row(
+                  children: [
+                    Icon(Icons.play_arrow, color: Colors.green),
+                    SizedBox(width: 8),
+                    Text('Active Projects (Status 2)'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'all',
+                child: Row(
+                  children: [
+                    Icon(Icons.list, color: Colors.blue),
+                    SizedBox(width: 8),
+                    Text('All Projects'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'status1',
+                child: Row(
+                  children: [
+                    Icon(Icons.pause, color: Colors.orange),
+                    SizedBox(width: 8),
+                    Text('Status 1 Projects'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'status3',
+                child: Row(
+                  children: [
+                    Icon(Icons.check, color: Colors.grey),
+                    SizedBox(width: 8),
+                    Text('Status 3 Projects'),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
       body: Column(
-        children: [_buildSearchBar(), Expanded(child: _buildBody())],
+        children: [
+          _buildSearchBar(),
+          _buildStatusIndicator(),
+          Expanded(child: _buildBody()),
+        ],
       ),
     );
   }
@@ -109,18 +183,17 @@ class _ProjectsPageState extends State<ProjectsPage> {
         decoration: InputDecoration(
           hintText: 'Search projects...',
           prefixIcon: const Icon(Icons.search, color: Colors.grey),
-          suffixIcon:
-              _searchQuery.isNotEmpty
-                  ? IconButton(
-                    icon: const Icon(Icons.clear, color: Colors.grey),
-                    onPressed: () {
-                      _searchController.clear();
-                      setState(() {
-                        _searchQuery = '';
-                      });
-                    },
-                  )
-                  : null,
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, color: Colors.grey),
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() {
+                      _searchQuery = '';
+                    });
+                  },
+                )
+              : null,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(25),
             borderSide: BorderSide.none,
@@ -137,6 +210,40 @@ class _ProjectsPageState extends State<ProjectsPage> {
             _searchQuery = value;
           });
         },
+      ),
+    );
+  }
+
+  Widget _buildStatusIndicator() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.green[50],
+        border: Border(
+          bottom: BorderSide(color: Colors.green[200]!),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.play_arrow, color: Colors.green[700], size: 20),
+          const SizedBox(width: 8),
+          Text(
+            'Showing Active Projects (Status 2)',
+            style: TextStyle(
+              color: Colors.green[700],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            '${_projects.length} projects',
+            style: TextStyle(
+              color: Colors.green[600],
+              fontSize: 12,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -187,8 +294,8 @@ class _ProjectsPageState extends State<ProjectsPage> {
             const SizedBox(height: 16),
             Text(
               _searchQuery.isNotEmpty
-                  ? 'No projects found matching "$_searchQuery"'
-                  : 'No projects yet',
+                  ? 'No active projects found matching "$_searchQuery"'
+                  : 'No active projects yet',
               style: const TextStyle(fontSize: 18, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
@@ -196,7 +303,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
             Text(
               _searchQuery.isNotEmpty
                   ? 'Try a different search term'
-                  : 'You\'ll see your projects here when you join some!',
+                  : 'Active projects with status 2 will appear here',
               style: const TextStyle(fontSize: 14, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
@@ -212,8 +319,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
         itemCount: filteredProjects.length,
         itemBuilder: (context, index) {
           final project = filteredProjects[index];
-          final isHighlighted =
-              widget.highlightProjectId != null &&
+          final isHighlighted = widget.highlightProjectId != null &&
               project.id == widget.highlightProjectId;
 
           return ProjectCard(
@@ -226,16 +332,56 @@ class _ProjectsPageState extends State<ProjectsPage> {
     );
   }
 
+  Future<void> _loadAllProjects() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final projects = await ServiceRegistry().projectService.getAll();
+      setState(() {
+        _projects = projects;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadProjectsByStatus(int status) async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final projects =
+          await ServiceRegistry().projectService.getByStatus(status);
+      setState(() {
+        _projects = projects;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
   void _openProjectDetails(Project project) {
     // Navigate to project detail page
     if (project.id != null) {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder:
-              (context) => ProjectDetailPage(
-                projectId: project.id!,
-                projectName: project.name,
-              ),
+          builder: (context) => ProjectDetailPage(
+            projectId: project.id!,
+            projectName: project.name,
+          ),
         ),
       );
     } else {
@@ -269,13 +415,12 @@ class ProjectCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         child: Container(
           padding: const EdgeInsets.all(16),
-          decoration:
-              isHighlighted
-                  ? BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.green, width: 2),
-                  )
-                  : null,
+          decoration: isHighlighted
+              ? BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green, width: 2),
+                )
+              : null,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -313,6 +458,8 @@ class ProjectCard extends StatelessWidget {
                           children: [
                             _buildPriorityChip(project.priority),
                             const SizedBox(width: 8),
+                            _buildStatusChip(project.status),
+                            const SizedBox(width: 8),
                             if (project.organisation != null)
                               _buildOrganisationChip(project.organisationId),
                           ],
@@ -327,7 +474,6 @@ class ProjectCard extends StatelessWidget {
                   ),
                 ],
               ),
-
               if (project.deadline != null) ...[
                 const SizedBox(height: 12),
                 Container(
@@ -383,6 +529,34 @@ class ProjectCard extends StatelessWidget {
           color: color,
           fontWeight: FontWeight.bold,
         ),
+      ),
+    );
+  }
+
+  Widget _buildStatusChip(int status) {
+    final color = _getStatusColor(status);
+    final text = _getStatusText(status);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(_getStatusIcon(status), size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              color: color,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -443,6 +617,47 @@ class ProjectCard extends StatelessWidget {
         return 'LOWEST';
       default:
         return 'NONE';
+    }
+  }
+
+  Color _getStatusColor(int status) {
+    switch (status) {
+      case 1:
+        return Colors.orange; // Draft/Planning
+      case 2:
+        return Colors.green; // Active
+      case 3:
+        return Colors.blue; // Completed
+      case 4:
+        return Colors.red; // Cancelled
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getStatusText(int status) {
+    switch (status) {
+      case 2:
+        return 'ACTIVE';
+      case 3:
+        return 'COMPLETED';
+      default:
+        return 'BACKLOG';
+    }
+  }
+
+  IconData _getStatusIcon(int status) {
+    switch (status) {
+      case 1:
+        return Icons.edit;
+      case 2:
+        return Icons.play_arrow;
+      case 3:
+        return Icons.check;
+      case 4:
+        return Icons.cancel;
+      default:
+        return Icons.help;
     }
   }
 

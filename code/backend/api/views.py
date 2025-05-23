@@ -183,7 +183,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['event', 'priority']
+    filterset_fields = ['event', 'priority', 'status']  # Added 'status' here
     permission_classes = [IsAuthenticated]
     
     def get_serializer_class(self):
@@ -218,6 +218,27 @@ class ProjectViewSet(viewsets.ModelViewSet):
         return result
     
     def create(self, request, *args, **kwargs):
+        """
+        Check if user belongs to the organization before creating a project.
+        """
+        # Get the event and extract the organization
+        event_id = request.data.get('event')
+        
+        if event_id:
+            try:
+                event = Event.objects.select_related('calendar__organisation').get(id=event_id)
+                organisation = event.calendar.organisation
+                
+                # Check if user belongs to this organization
+                if not UserOrganisation.objects.filter(user=request.user, organisation=organisation).exists():
+                    return Response(
+                        {"detail": "You can only create projects in organizations you belong to."},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+            except Event.DoesNotExist:
+                pass  # Let the serializer handle the invalid event ID
+        
+        return super().create(request, *args, **kwargs)
         """
         Check if user belongs to the organization before creating a project.
         """
