@@ -11,7 +11,7 @@ class ProjectDetailPage extends StatefulWidget {
   final String? projectName;
 
   const ProjectDetailPage({Key? key, required this.projectId, this.projectName})
-    : super(key: key);
+      : super(key: key);
 
   @override
   _ProjectDetailPageState createState() => _ProjectDetailPageState();
@@ -98,65 +98,62 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
                   break;
               }
             },
-            itemBuilder:
-                (context) => [
-                  const PopupMenuItem(
-                    value: 'edit',
-                    child: Row(
-                      children: [
-                        Icon(Icons.edit, color: Colors.grey),
-                        SizedBox(width: 12),
-                        Text('Edit Project'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'share',
-                    child: Row(
-                      children: [
-                        Icon(Icons.share, color: Colors.grey),
-                        SizedBox(width: 12),
-                        Text('Share Project'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'archive',
-                    child: Row(
-                      children: [
-                        Icon(Icons.archive, color: Colors.orange),
-                        SizedBox(width: 12),
-                        Text('Archive Project'),
-                      ],
-                    ),
-                  ),
-                ],
-          ),
-        ],
-        bottom:
-            _isLoading
-                ? null
-                : TabBar(
-                  controller: _tabController,
-                  labelColor: Colors.white,
-                  unselectedLabelColor: Colors.white70,
-                  indicatorColor: Colors.white,
-                  tabs: const [
-                    Tab(text: 'Overview', icon: Icon(Icons.info)),
-                    Tab(text: 'Tasks', icon: Icon(Icons.task)),
-                    Tab(text: 'Chats', icon: Icon(Icons.chat)),
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'edit',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit, color: Colors.grey),
+                    SizedBox(width: 12),
+                    Text('Edit Project'),
                   ],
                 ),
+              ),
+              const PopupMenuItem(
+                value: 'share',
+                child: Row(
+                  children: [
+                    Icon(Icons.share, color: Colors.grey),
+                    SizedBox(width: 12),
+                    Text('Share Project'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'archive',
+                child: Row(
+                  children: [
+                    Icon(Icons.archive, color: Colors.orange),
+                    SizedBox(width: 12),
+                    Text('Archive Project'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+        bottom: _isLoading
+            ? null
+            : TabBar(
+                controller: _tabController,
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.white70,
+                indicatorColor: Colors.white,
+                tabs: const [
+                  Tab(text: 'Overview', icon: Icon(Icons.info)),
+                  Tab(text: 'Tasks', icon: Icon(Icons.task)),
+                  Tab(text: 'Chats', icon: Icon(Icons.chat)),
+                ],
+              ),
       ),
       body: _buildBody(),
-      floatingActionButton:
-          _isLoading
-              ? null
-              : FloatingActionButton(
-                onPressed: _showAddOptions,
-                backgroundColor: Colors.green,
-                child: const Icon(Icons.add, color: Colors.white),
-              ),
+      floatingActionButton: _isLoading
+          ? null
+          : FloatingActionButton(
+              onPressed: _showAddOptions,
+              backgroundColor: Colors.green,
+              child: const Icon(Icons.add, color: Colors.white),
+            ),
     );
   }
 
@@ -298,12 +295,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
   }
 
   Widget _buildProjectStats() {
-    final completedTasks =
-        _tasks
-            .where((task) => task.status == 3)
-            .length; // Assuming status 3 is completed
+    final completedTasks = _tasks
+        .where((task) => task.status == 3)
+        .length; // Assuming status 3 is completed
     final totalTasks = _tasks.length;
-    final progress = totalTasks > 0 ? completedTasks / totalTasks : 0.0;
 
     return Row(
       children: [
@@ -384,7 +379,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
             ),
             _buildDetailRow(
               'Organization',
-              _project?.organisationId?.toString() ?? 'Unknown',
+              _project?.organisationId.toString() ?? 'Unknown',
             ),
             _buildDetailRow(
               'Priority',
@@ -475,34 +470,33 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
   Widget _buildTasksTab() {
     return RefreshIndicator(
       onRefresh: _loadProjectData,
-      child:
-          _tasks.isEmpty
-              ? const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.task, size: 64, color: Colors.grey),
-                    SizedBox(height: 16),
-                    Text(
-                      'No tasks yet',
-                      style: TextStyle(fontSize: 18, color: Colors.grey),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Add some tasks to get started!',
-                      style: TextStyle(fontSize: 14, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              )
-              : ListView.builder(
-                padding: const EdgeInsets.all(8),
-                itemCount: _tasks.length,
-                itemBuilder: (context, index) {
-                  final task = _tasks[index];
-                  return _buildTaskCard(task);
-                },
+      child: _tasks.isEmpty
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.task, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text(
+                    'No tasks yet',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Add some tasks to get started!',
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                ],
               ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(8),
+              itemCount: _tasks.length,
+              itemBuilder: (context, index) {
+                final task = _tasks[index];
+                return _buildTaskCard(task);
+              },
+            ),
     );
   }
 
@@ -538,15 +532,14 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
               SnackBar(content: Text('$value task: ${task.title}')),
             );
           },
-          itemBuilder:
-              (context) => [
-                const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                const PopupMenuItem(
-                  value: 'complete',
-                  child: Text('Mark Complete'),
-                ),
-                const PopupMenuItem(value: 'delete', child: Text('Delete')),
-              ],
+          itemBuilder: (context) => [
+            const PopupMenuItem(value: 'edit', child: Text('Edit')),
+            const PopupMenuItem(
+              value: 'complete',
+              child: Text('Mark Complete'),
+            ),
+            const PopupMenuItem(value: 'delete', child: Text('Delete')),
+          ],
         ),
         onTap: () {
           // TODO: Navigate to task detail
@@ -561,34 +554,33 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
   Widget _buildChatsTab() {
     return RefreshIndicator(
       onRefresh: _loadProjectData,
-      child:
-          _chats.isEmpty
-              ? const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.chat, size: 64, color: Colors.grey),
-                    SizedBox(height: 16),
-                    Text(
-                      'No chats yet',
-                      style: TextStyle(fontSize: 18, color: Colors.grey),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Create a chat to collaborate!',
-                      style: TextStyle(fontSize: 14, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              )
-              : ListView.builder(
-                padding: const EdgeInsets.all(8),
-                itemCount: _chats.length,
-                itemBuilder: (context, index) {
-                  final chat = _chats[index];
-                  return _buildChatCard(chat);
-                },
+      child: _chats.isEmpty
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.chat, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text(
+                    'No chats yet',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Create a chat to collaborate!',
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                ],
               ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(8),
+              itemCount: _chats.length,
+              itemBuilder: (context, index) {
+                final chat = _chats[index];
+                return _buildChatCard(chat);
+              },
+            ),
     );
   }
 
@@ -616,37 +608,36 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
   void _showAddOptions() {
     showModalBottomSheet(
       context: context,
-      builder:
-          (context) => SafeArea(
-            child: Wrap(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.task, color: Colors.blue),
-                  title: const Text('Add Task'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _addTask();
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.chat, color: Colors.green),
-                  title: const Text('Create Chat'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _createChat();
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.person_add, color: Colors.orange),
-                  title: const Text('Add Member'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _addMember();
-                  },
-                ),
-              ],
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.task, color: Colors.blue),
+              title: const Text('Add Task'),
+              onTap: () {
+                Navigator.pop(context);
+                _addTask();
+              },
             ),
-          ),
+            ListTile(
+              leading: const Icon(Icons.chat, color: Colors.green),
+              title: const Text('Create Chat'),
+              onTap: () {
+                Navigator.pop(context);
+                _createChat();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_add, color: Colors.orange),
+              title: const Text('Add Member'),
+              onTap: () {
+                Navigator.pop(context);
+                _addMember();
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 

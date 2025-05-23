@@ -11,7 +11,7 @@ class ChatInfoPage extends StatefulWidget {
   final String chatName;
 
   const ChatInfoPage({Key? key, required this.chatId, required this.chatName})
-    : super(key: key);
+      : super(key: key);
 
   @override
   _ChatInfoPageState createState() => _ChatInfoPageState();
@@ -42,24 +42,23 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
 
       // Load messages to get participant information
       final messages = await ServiceRegistry().messageService.getByChatId(
-        widget.chatId,
-      );
+            widget.chatId,
+          );
 
       // Get unique participants from messages
       final participantIds = messages.map((m) => m.user).toSet().toList();
 
       // For this demo, we'll create mock participants since we don't have a user service
       // In a real app, you'd fetch user details for each participant ID
-      final participants =
-          participantIds
-              .map(
-                (id) => User(
-                  id: id,
-                  username: 'User $id',
-                  email: 'user$id@example.com',
-                ),
-              )
-              .toList();
+      final participants = participantIds
+          .map(
+            (id) => User(
+              id: id,
+              username: 'User $id',
+              email: 'user$id@example.com',
+            ),
+          )
+          .toList();
 
       setState(() {
         _chat = chat;
@@ -322,12 +321,12 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
           _buildDetailRow('Type', _chat?.chatType ?? 'Unknown'),
           _buildDetailRow(
             'Organisation',
-            _chat?.organisation?.toString() ?? 'Unknown',
+            _chat?.organisation.toString() ?? 'Unknown',
           ),
           _buildDetailRow('Project', _chat?.project?.toString() ?? 'None'),
           _buildDetailRow(
             'Min Role Level',
-            _chat?.minRoleLevel?.toString() ?? 'Unknown',
+            _chat?.minRoleLevel.toString() ?? 'Unknown',
           ),
           _buildDetailRow('Created', _formatDate(_chat?.created)),
           _buildDetailRow('Total Messages', _messages.length.toString()),
@@ -425,17 +424,16 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
             SnackBar(content: Text('$value for ${participant.username}')),
           );
         },
-        itemBuilder:
-            (context) => [
-              const PopupMenuItem(
-                value: 'view_profile',
-                child: Text('View Profile'),
-              ),
-              const PopupMenuItem(
-                value: 'remove',
-                child: Text('Remove from Chat'),
-              ),
-            ],
+        itemBuilder: (context) => [
+          const PopupMenuItem(
+            value: 'view_profile',
+            child: Text('View Profile'),
+          ),
+          const PopupMenuItem(
+            value: 'remove',
+            child: Text('Remove from Chat'),
+          ),
+        ],
       ),
     );
   }
@@ -544,26 +542,25 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
   Future<void> _showClearHistoryDialog() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Clear Chat History'),
-            content: const Text(
-              'Are you sure you want to clear all messages in this chat? This action cannot be undone.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text(
-                  'Clear',
-                  style: TextStyle(color: Colors.orange),
-                ),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: const Text('Clear Chat History'),
+        content: const Text(
+          'Are you sure you want to clear all messages in this chat? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
           ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text(
+              'Clear',
+              style: TextStyle(color: Colors.orange),
+            ),
+          ),
+        ],
+      ),
     );
 
     if (confirmed == true) {
@@ -579,23 +576,22 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
   Future<void> _showLeaveChatDialog() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Leave Chat'),
-            content: const Text(
-              'Are you sure you want to leave this chat? You will no longer receive messages.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Leave', style: TextStyle(color: Colors.red)),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: const Text('Leave Chat'),
+        content: const Text(
+          'Are you sure you want to leave this chat? You will no longer receive messages.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
           ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Leave', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
     );
 
     if (confirmed == true) {

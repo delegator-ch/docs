@@ -1,7 +1,5 @@
 // lib/models/event.dart
 
-import '../models/calendar.dart';
-
 class Event {
   final int? id;
   final String? title; // Made optional to match current test usage

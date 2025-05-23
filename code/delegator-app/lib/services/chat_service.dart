@@ -5,7 +5,6 @@ import '../models/chat.dart';
 import '../models/paginated_response.dart';
 import 'base_service.dart';
 import 'api_client.dart';
-import '../config/api_config.dart';
 
 /// Service for managing Chat entities
 ///
@@ -44,7 +43,6 @@ class ChatService implements BaseService<Chat> {
       }
     } on ApiException catch (e) {
       _handleApiException('Failed to get all chats', e);
-      return []; // This line won't be reached if _handleApiException rethrows
     } catch (e) {
       throw Exception('Failed to get all chats: $e');
     }
@@ -68,7 +66,6 @@ class ChatService implements BaseService<Chat> {
         throw Exception('Chat with ID $id not found');
       }
       _handleApiException('Failed to get chat with ID $id', e);
-      throw Exception('This line should not be reached');
     } catch (e) {
       throw Exception('Failed to get chat with ID $id: $e');
     }
@@ -88,7 +85,6 @@ class ChatService implements BaseService<Chat> {
       return Chat.fromJson(response);
     } on ApiException catch (e) {
       _handleApiException('Failed to create chat', e);
-      throw Exception('This line should not be reached');
     } catch (e) {
       throw Exception('Failed to create chat: $e');
     }
@@ -115,7 +111,6 @@ class ChatService implements BaseService<Chat> {
         throw Exception('Chat with ID ${chat.id} not found');
       }
       _handleApiException('Failed to update chat', e);
-      throw Exception('This line should not be reached');
     } catch (e) {
       throw Exception('Failed to update chat: $e');
     }
@@ -138,7 +133,6 @@ class ChatService implements BaseService<Chat> {
         throw Exception('Chat with ID $id not found');
       }
       _handleApiException('Failed to delete chat with ID $id', e);
-      return false; // This line won't be reached if _handleApiException rethrows
     } catch (e) {
       throw Exception('Failed to delete chat with ID $id: $e');
     }
@@ -177,7 +171,6 @@ class ChatService implements BaseService<Chat> {
         'Failed to get chats for organisation $organisationId',
         e,
       );
-      return [];
     } catch (e) {
       throw Exception(
         'Failed to get chats for organisation $organisationId: $e',
@@ -213,7 +206,6 @@ class ChatService implements BaseService<Chat> {
       }
     } on ApiException catch (e) {
       _handleApiException('Failed to get chats for project $projectId', e);
-      return [];
     } catch (e) {
       throw Exception('Failed to get chats for project $projectId: $e');
     }
@@ -247,7 +239,6 @@ class ChatService implements BaseService<Chat> {
       }
     } on ApiException catch (e) {
       _handleApiException('Failed to get chats of type $chatType', e);
-      return [];
     } catch (e) {
       throw Exception('Failed to get chats of type $chatType: $e');
     }

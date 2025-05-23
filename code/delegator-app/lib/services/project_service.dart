@@ -17,7 +17,7 @@ class ProjectService implements BaseService<Project> {
   ///
   /// Optionally accepts a custom [apiClient], otherwise creates a default one
   ProjectService({ApiClient? apiClient})
-    : _apiClient = apiClient ?? ApiClient();
+      : _apiClient = apiClient ?? ApiClient();
 
   /// Fetches all projects
   ///
@@ -32,7 +32,6 @@ class ProjectService implements BaseService<Project> {
       return projectsJson.map((json) => Project.fromJson(json)).toList();
     } on ApiException catch (e) {
       _handleApiException('Failed to get all projects', e);
-      return []; // This line won't be reached if _handleApiException rethrows
     } catch (e) {
       throw Exception('Failed to get all projects: $e');
     }
@@ -56,7 +55,6 @@ class ProjectService implements BaseService<Project> {
         throw Exception('Project with ID $id not found');
       }
       _handleApiException('Failed to get project with ID $id', e);
-      throw Exception('This line should not be reached');
     } catch (e) {
       throw Exception('Failed to get project with ID $id: $e');
     }
@@ -79,7 +77,6 @@ class ProjectService implements BaseService<Project> {
       return Project.fromJson(response);
     } on ApiException catch (e) {
       _handleApiException('Failed to create project', e);
-      throw Exception('This line should not be reached');
     } catch (e) {
       throw Exception('Failed to create project: $e');
     }
@@ -109,7 +106,6 @@ class ProjectService implements BaseService<Project> {
         throw Exception('Project with ID ${project.id} not found');
       }
       _handleApiException('Failed to update project', e);
-      throw Exception('This line should not be reached');
     } catch (e) {
       throw Exception('Failed to update project: $e');
     }
@@ -132,7 +128,6 @@ class ProjectService implements BaseService<Project> {
         throw Exception('Project with ID $id not found');
       }
       _handleApiException('Failed to delete project with ID $id', e);
-      return false; // This line won't be reached if _handleApiException rethrows
     } catch (e) {
       throw Exception('Failed to delete project with ID $id: $e');
     }
@@ -158,7 +153,6 @@ class ProjectService implements BaseService<Project> {
         'Failed to get projects for organization $organizationId',
         e,
       );
-      return []; // This line won't be reached if _handleApiException rethrows
     } catch (e) {
       throw Exception(
         'Failed to get projects for organization $organizationId: $e',
@@ -183,7 +177,6 @@ class ProjectService implements BaseService<Project> {
         'Failed to get projects with deadline before $date',
         e,
       );
-      return []; // This line won't be reached if _handleApiException rethrows
     } catch (e) {
       throw Exception('Failed to get projects with deadline before $date: $e');
     }
@@ -206,7 +199,6 @@ class ProjectService implements BaseService<Project> {
       return projectsJson.map((json) => Project.fromJson(json)).toList();
     } on ApiException catch (e) {
       _handleApiException('Failed to get projects with status $status', e);
-      return []; // This line won't be reached if _handleApiException rethrows
     } catch (e) {
       throw Exception('Failed to get projects with status $status: $e');
     }
@@ -229,7 +221,6 @@ class ProjectService implements BaseService<Project> {
       return projectsJson.map((json) => Project.fromJson(json)).toList();
     } on ApiException catch (e) {
       _handleApiException('Failed to search projects with query "$query"', e);
-      return []; // This line won't be reached if _handleApiException rethrows
     } catch (e) {
       throw Exception('Failed to search projects with query "$query": $e');
     }

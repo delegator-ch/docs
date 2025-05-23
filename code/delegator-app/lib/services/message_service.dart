@@ -4,7 +4,6 @@ import 'dart:async';
 import '../models/message.dart';
 import '../models/paginated_response.dart';
 import 'api_client.dart';
-import '../config/api_config.dart';
 
 /// Service for managing Message entities
 ///
@@ -17,7 +16,7 @@ class MessageService {
   ///
   /// Optionally accepts a custom [apiClient], otherwise creates a default one
   MessageService({ApiClient? apiClient})
-    : _apiClient = apiClient ?? ApiClient();
+      : _apiClient = apiClient ?? ApiClient();
 
   /// Fetches all messages
   ///
@@ -43,7 +42,6 @@ class MessageService {
       }
     } on ApiException catch (e) {
       _handleApiException('Failed to get all messages', e);
-      return []; // This line won't be reached if _handleApiException rethrows
     } catch (e) {
       throw Exception('Failed to get all messages: $e');
     }
@@ -66,7 +64,6 @@ class MessageService {
         throw Exception('Message with ID $id not found');
       }
       _handleApiException('Failed to get message with ID $id', e);
-      throw Exception('This line should not be reached');
     } catch (e) {
       throw Exception('Failed to get message with ID $id: $e');
     }
@@ -85,7 +82,6 @@ class MessageService {
       return Message.fromJson(response);
     } on ApiException catch (e) {
       _handleApiException('Failed to create message', e);
-      throw Exception('This line should not be reached');
     } catch (e) {
       throw Exception('Failed to create message: $e');
     }
@@ -114,7 +110,6 @@ class MessageService {
         throw Exception('Message with ID ${message.id} not found');
       }
       _handleApiException('Failed to update message', e);
-      throw Exception('This line should not be reached');
     } catch (e) {
       throw Exception('Failed to update message: $e');
     }
@@ -136,7 +131,6 @@ class MessageService {
         throw Exception('Message with ID $id not found');
       }
       _handleApiException('Failed to delete message with ID $id', e);
-      return false; // This line won't be reached if _handleApiException rethrows
     } catch (e) {
       throw Exception('Failed to delete message with ID $id: $e');
     }
@@ -170,7 +164,6 @@ class MessageService {
       }
     } on ApiException catch (e) {
       _handleApiException('Failed to get messages for chat $chatId', e);
-      return [];
     } catch (e) {
       throw Exception('Failed to get messages for chat $chatId: $e');
     }
@@ -204,7 +197,6 @@ class MessageService {
       }
     } on ApiException catch (e) {
       _handleApiException('Failed to get messages for user $userId', e);
-      return [];
     } catch (e) {
       throw Exception('Failed to get messages for user $userId: $e');
     }
@@ -237,7 +229,6 @@ class MessageService {
       }
     } on ApiException catch (e) {
       _handleApiException('Failed to search messages with query "$query"', e);
-      return [];
     } catch (e) {
       throw Exception('Failed to search messages with query "$query": $e');
     }

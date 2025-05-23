@@ -36,7 +36,6 @@ class EventService implements BaseService<Event> {
       }
     } on ApiException catch (e) {
       _handleApiException('Failed to get all events', e);
-      return [];
     } catch (e) {
       throw Exception('Failed to get all events: $e');
     }
@@ -57,7 +56,6 @@ class EventService implements BaseService<Event> {
         throw Exception('Event with ID $id not found');
       }
       _handleApiException('Failed to get event with ID $id', e);
-      throw Exception('This line should not be reached');
     } catch (e) {
       throw Exception('Failed to get event with ID $id: $e');
     }
@@ -73,7 +71,6 @@ class EventService implements BaseService<Event> {
       return Event.fromJson(response);
     } on ApiException catch (e) {
       _handleApiException('Failed to create event', e);
-      throw Exception('This line should not be reached');
     } catch (e) {
       throw Exception('Failed to create event: $e');
     }
@@ -99,7 +96,6 @@ class EventService implements BaseService<Event> {
         throw Exception('Event with ID ${event.id} not found');
       }
       _handleApiException('Failed to update event', e);
-      throw Exception('This line should not be reached');
     } catch (e) {
       throw Exception('Failed to update event: $e');
     }
@@ -120,7 +116,6 @@ class EventService implements BaseService<Event> {
         throw Exception('Event with ID $id not found');
       }
       _handleApiException('Failed to delete event with ID $id', e);
-      return false;
     } catch (e) {
       throw Exception('Failed to delete event with ID $id: $e');
     }
@@ -151,7 +146,6 @@ class EventService implements BaseService<Event> {
       }
     } on ApiException catch (e) {
       _handleApiException('Failed to get events for calendar $calendarId', e);
-      return [];
     } catch (e) {
       throw Exception('Failed to get events for calendar $calendarId: $e');
     }
@@ -182,7 +176,6 @@ class EventService implements BaseService<Event> {
       }
     } on ApiException catch (e) {
       _handleApiException('Failed to get events for project $projectId', e);
-      return [];
     } catch (e) {
       throw Exception('Failed to get events for project $projectId: $e');
     }
@@ -207,7 +200,6 @@ class EventService implements BaseService<Event> {
       }
     } on ApiException catch (e) {
       _handleApiException('Failed to get gigs', e);
-      return [];
     } catch (e) {
       throw Exception('Failed to get gigs: $e');
     }

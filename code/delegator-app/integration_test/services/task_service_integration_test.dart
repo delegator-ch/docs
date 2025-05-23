@@ -5,9 +5,6 @@ import 'package:delegator/services/task_service.dart';
 import 'package:delegator/services/auth_service.dart';
 import 'package:delegator/services/api_client.dart';
 import 'package:delegator/models/task.dart';
-import 'package:delegator/models/user.dart';
-import 'package:delegator/models/status.dart';
-import 'package:delegator/models/project.dart';
 import '../helpers/test_setup.dart';
 
 void main() {

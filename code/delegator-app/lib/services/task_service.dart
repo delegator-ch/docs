@@ -44,7 +44,6 @@ class TaskService implements BaseService<Task> {
       }
     } on ApiException catch (e) {
       _handleApiException('Failed to get all tasks', e);
-      return []; // This line won't be reached if _handleApiException rethrows
     } catch (e) {
       throw Exception('Failed to get all tasks: $e');
     }
@@ -68,7 +67,6 @@ class TaskService implements BaseService<Task> {
         throw Exception('Task with ID $id not found');
       }
       _handleApiException('Failed to get task with ID $id', e);
-      throw Exception('This line should not be reached');
     } catch (e) {
       throw Exception('Failed to get task with ID $id: $e');
     }
@@ -88,7 +86,6 @@ class TaskService implements BaseService<Task> {
       return Task.fromJson(response);
     } on ApiException catch (e) {
       _handleApiException('Failed to create task', e);
-      throw Exception('This line should not be reached');
     } catch (e) {
       throw Exception('Failed to create task: $e');
     }
@@ -118,7 +115,6 @@ class TaskService implements BaseService<Task> {
         throw Exception('Task with ID ${task.id} not found');
       }
       _handleApiException('Failed to update task', e);
-      throw Exception('This line should not be reached');
     } catch (e) {
       throw Exception('Failed to update task: $e');
     }
@@ -141,7 +137,6 @@ class TaskService implements BaseService<Task> {
         throw Exception('Task with ID $id not found');
       }
       _handleApiException('Failed to delete task with ID $id', e);
-      return false; // This line won't be reached if _handleApiException rethrows
     } catch (e) {
       throw Exception('Failed to delete task with ID $id: $e');
     }
@@ -177,7 +172,6 @@ class TaskService implements BaseService<Task> {
       }
     } on ApiException catch (e) {
       _handleApiException('Failed to get tasks for project $projectId', e);
-      return [];
     } catch (e) {
       throw Exception('Failed to get tasks for project $projectId: $e');
     }
@@ -210,7 +204,6 @@ class TaskService implements BaseService<Task> {
       }
     } on ApiException catch (e) {
       _handleApiException('Failed to get tasks for user $userId', e);
-      return [];
     } catch (e) {
       throw Exception('Failed to get tasks for user $userId: $e');
     }
@@ -245,7 +238,6 @@ class TaskService implements BaseService<Task> {
       }
     } on ApiException catch (e) {
       _handleApiException('Failed to get tasks with status $statusId', e);
-      return [];
     } catch (e) {
       throw Exception('Failed to get tasks with status $statusId: $e');
     }
@@ -277,7 +269,6 @@ class TaskService implements BaseService<Task> {
       }
     } on ApiException catch (e) {
       _handleApiException('Failed to get tasks with deadline before $date', e);
-      return [];
     } catch (e) {
       throw Exception('Failed to get tasks with deadline before $date: $e');
     }
@@ -315,7 +306,6 @@ class TaskService implements BaseService<Task> {
         'Failed to get tasks dependent on task $dependentTaskId',
         e,
       );
-      return [];
     } catch (e) {
       throw Exception(
         'Failed to get tasks dependent on task $dependentTaskId: $e',
@@ -352,7 +342,6 @@ class TaskService implements BaseService<Task> {
       }
     } on ApiException catch (e) {
       _handleApiException('Failed to get tasks for event $eventId', e);
-      return [];
     } catch (e) {
       throw Exception('Failed to get tasks for event $eventId: $e');
     }
@@ -385,7 +374,6 @@ class TaskService implements BaseService<Task> {
       }
     } on ApiException catch (e) {
       _handleApiException('Failed to search tasks with query "$query"', e);
-      return [];
     } catch (e) {
       throw Exception('Failed to search tasks with query "$query": $e');
     }
