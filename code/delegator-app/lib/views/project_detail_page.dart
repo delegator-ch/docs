@@ -202,6 +202,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           _buildChatsSection(),
           const SizedBox(height: 20),
           _buildRecentActivity(),
+          const SizedBox(height: 20),
+          _buildStatusChangeSection(),
         ],
       ),
     );
@@ -593,6 +595,94 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         },
       ),
     );
+  }
+
+  Widget _buildStatusChangeSection() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Change Project Status',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatusChangeButton(1, 'Backlog', Colors.orange),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildStatusChangeButton(2, 'Active', Colors.green),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildStatusChangeButton(3, 'Completed', Colors.blue),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusChangeButton(int status, String text, Color color) {
+    final isCurrentStatus = _project?.status == status;
+
+    return ElevatedButton(
+      onPressed: isCurrentStatus ? null : () => _changeProjectStatus(status),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: isCurrentStatus ? Colors.grey[300] : color,
+        foregroundColor: isCurrentStatus ? Colors.grey[600] : Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  Future<void> _changeProjectStatus(int newStatus) async {
+    if (_project == null) return;
+
+    try {
+      final updatedProject = Project(
+        id: _project!.id,
+        name: _project!.name,
+        organisationId: _project!.organisationId,
+        priority: _project!.priority,
+        deadline: _project!.deadline,
+        status: newStatus,
+        event: _project!.event,
+        chat: _project!.chat,
+      );
+
+      await ServiceRegistry().projectService.update(updatedProject);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Project status updated successfully')),
+      );
+
+      _loadProjectData(); // Refresh the project data
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update status: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _showAddOptions() {
