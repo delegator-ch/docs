@@ -6,6 +6,7 @@ import '../models/project.dart';
 import '../models/task.dart';
 import '../models/chat.dart';
 import 'chat_detail_page.dart';
+import 'create_task_dialog.dart';
 
 class ProjectDetailPage extends StatefulWidget {
   final int projectId;
@@ -411,23 +412,28 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   Widget _buildStatCard(
       String title, String value, IconData icon, Color color) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Icon(icon, size: 32, color: color),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              textAlign: TextAlign.center,
-            ),
-          ],
+      child: InkWell(
+        onTap: title == 'Chat' ? _openProjectChat : null,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Icon(icon, size: 32, color: color),
+              const SizedBox(height: 8),
+              Text(
+                value,
+                style:
+                    const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                title,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -604,14 +610,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.chat, color: Colors.green),
-              title: const Text('Create Chat'),
-              onTap: () {
-                Navigator.pop(context);
-                _createChat();
-              },
-            ),
-            ListTile(
               leading: const Icon(Icons.person_add, color: Colors.orange),
               title: const Text('Add Member'),
               onTap: () {
@@ -626,21 +624,15 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   }
 
   void _openProjectChat() {
-    if (_chat != null) {
-      // Fixed condition
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => ChatDetailPage(
-            chatId: _chat!.id!,
-            chatName: _chat!.name,
-          ),
+    // Use widget.chatId directly since it's passed from the constructor
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ChatDetailPage(
+          chatId: widget.chatId,
+          chatName: _chat?.name ?? 'Project Chat',
         ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No chat available for this project')),
-      );
-    }
+      ),
+    );
   }
 
   void _editProject() {
@@ -661,10 +653,20 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     );
   }
 
-  void _addTask() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Add task coming soon!')),
+  Future<void> _addTask() async {
+    final Task? newTask = await showDialog<Task>(
+      context: context,
+      builder: (context) => CreateTaskDialog(projectId: widget.projectId),
     );
+
+    if (newTask != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Task "${newTask.title}" created successfully!'),
+        ),
+      );
+      _loadProjectData(); // Refresh the project data to show new task
+    }
   }
 
   void _createChat() {

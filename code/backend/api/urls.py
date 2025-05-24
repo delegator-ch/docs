@@ -6,7 +6,7 @@ from .views import (
     UserViewSet, OrganisationViewSet, RoleViewSet, UserOrganisationViewSet,
     CalendarViewSet, EventViewSet, ProjectViewSet, ChatViewSet, ChatUserViewSet,
     MessageViewSet, SongViewSet, TimetableViewSet, SetlistViewSet,
-    HistoryViewSet, StatusViewSet, TaskViewSet, RecordingViewSet, UserProjectViewSet, ChatAccessViewSet, upgrade_to_premium
+    HistoryViewSet, StatusViewSet, TaskViewSet, RecordingViewSet, UserProjectViewSet, ChatAccessViewSet, upgrade_to_premium, get_users_by_project
 )
 # Update api/urls.py to include JWT views
 from rest_framework_simplejwt.views import (
@@ -76,4 +76,7 @@ urlpatterns += [
     path('subscriptions/user/', create_user_subscription, name='create-user-subscription'),
     path('subscriptions/', list_subscriptions, name='list-subscriptions'),
     path('subscriptions/<int:subscription_id>/revoke/', revoke_subscription, name='revoke-subscription'),
+    path('projects/<int:project_id>/users/', get_users_by_project, name='project-users'),
 ]
+
+

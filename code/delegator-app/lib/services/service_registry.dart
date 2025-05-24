@@ -9,6 +9,7 @@ import 'auth_service.dart';
 import 'project_service.dart';
 import 'event_service.dart';
 import 'task_service.dart';
+import 'user_service.dart';
 
 /// Centralized registry for all services
 /// Follows the service locator pattern
@@ -31,6 +32,7 @@ class ServiceRegistry {
   late final MessageService _messageService;
   late final ChatService _chatService;
   late final OrganisationService _organisationService;
+  late final UserService _userService;
 
   // Initialization flag
   bool _isInitialized = false;
@@ -52,6 +54,7 @@ class ServiceRegistry {
     _messageService = MessageService(apiClient: _apiClient);
     _chatService = ChatService(apiClient: _apiClient);
     _organisationService = OrganisationService(apiClient: _apiClient);
+    _userService = UserService(apiClient: _apiClient);
 
     _isInitialized = true;
     print("✅ ServiceRegistry initialized successfully");
@@ -102,6 +105,12 @@ class ServiceRegistry {
   OrganisationService get organisationService {
     _checkInitialization();
     return _organisationService;
+  }
+
+  // Add getter
+  UserService get userService {
+    _checkInitialization();
+    return _userService;
   }
 
   /// Check if user is currently logged in

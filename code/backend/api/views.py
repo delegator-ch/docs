@@ -570,3 +570,103 @@ def upgrade_to_premium(request):
         "detail": "Congratulations! You are now a premium user.",
         "is_premium": True
     })
+
+# Add this to your views.py
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_users_by_project(request, project_id):
+    """
+    Get all users who can access a specific project (both direct and via organization).
+    """
+    try:
+        project = Project.objects.get(id=project_id)
+    except Project.DoesNotExist:
+        return Response(
+            {"detail": "Project not found."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    # Check if user has access to this project
+    user = request.user
+    if not user.is_staff:
+        # Check if user is part of the project or organization
+        has_project_access = UserProject.objects.filter(user=user, project=project).exists()
+        has_org_access = UserOrganisation.objects.filter(
+            user=user, 
+            organisation=project.organisation
+        ).exists() if hasattr(project, 'organisation') else False
+        
+        if not (has_project_access or has_org_access):
+            return Response(
+                {"detail": "You don't have access to this project."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+    
+    # Get users from both sources
+    users_data = []
+    added_user_ids = set()
+    
+    # 1. Users directly assigned to project
+    user_projects = UserProject.objects.filter(project=project).select_related('user', 'role')
+    for up in user_projects:
+        users_data.append({
+            'id': up.user.id,
+            'username': up.user.username,
+            'email': up.user.email,
+            'first_name': up.user.first_name,
+            'last_name': up.user.last_name,
+            'role': {
+                'id': up.role.id,
+                'name': up.role.name,
+                'level': up.role.level
+            },
+            'joined_project': up.created,
+            'access_type': 'direct'
+        })
+        added_user_ids.add(up.user.id)
+
+
+    # 2. Users from organization (if project has organization)
+    if hasattr(project, 'organisation') and project.organisation:
+        
+        org_users = UserOrganisation.objects.filter(
+            organisation=project.organisation
+        ).select_related('user', 'role')
+        
+        print(f"Project organisation: {project.organisation}")
+        print(f"Project organisation ID: {project.organisation.id}")
+
+        # Add after the org users query
+        print(f"Found {org_users.count()} org users")
+        for uo in org_users:
+            print(f"added_user_ids: {added_user_ids}")
+            print(f"User ID {uo.user.id} in added_user_ids: {uo.user.id in added_user_ids}")
+            print(f"User: {uo.user.username}, Role: {uo.role.name}")
+            if uo.user.id not in added_user_ids:
+                users_data.append({
+                    'id': uo.user.id,
+                    'username': uo.user.username,
+                    'email': uo.user.email,
+                    'first_name': uo.user.first_name,
+                    'last_name': uo.user.last_name,
+                    'role': {
+                        'id': uo.role.id,
+                        'name': uo.role.name,
+                        'level': uo.role.level
+                    },
+                    'joined_project': None,
+                    'access_type': 'organization'
+                })
+                added_user_ids.add(uo.user.id)
+    
+    return Response({
+        'project_id': project.id,
+        'project_name': project.name,
+        'users': users_data,
+        'total_users': len(users_data)
+    })
+
+
+# Add this to your urls.py in the urlpatterns list:
+# path('projects/<int:project_id>/users/', get_users_by_project, name='project-users'),

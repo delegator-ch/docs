@@ -5,6 +5,7 @@ import '../services/service_registry.dart';
 import '../models/chat.dart';
 import '../models/message.dart';
 import '../models/user.dart';
+import 'project_detail_page.dart';
 
 class ChatInfoPage extends StatefulWidget {
   final int chatId;
@@ -646,16 +647,23 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
   }
 
   void _navigateToProject(int projectId) {
-    // TODO: Navigate to project detail page
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Navigate to project $projectId'),
-        action: SnackBarAction(
-          label: 'OK',
-          onPressed: () {},
+    if (_chat?.project != null) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => ProjectDetailPage(
+            projectId: projectId,
+            chatId: _chat!.id!,
+            projectName: _chat!.projectDetails?.name,
+          ),
         ),
-      ),
-    );
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Chat ID not available for this project'),
+        ),
+      );
+    }
   }
 
   Color _getChatTypeColor(String chatType) {
