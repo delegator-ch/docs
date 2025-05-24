@@ -465,6 +465,7 @@ class _HomePageState extends State<HomePage> {
             MaterialPageRoute(
               builder: (context) => ProjectDetailPage(
                 projectId: project.id!,
+                chatId: project.chat!,
                 projectName: project.name,
               ),
             ),

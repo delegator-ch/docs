@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import '../services/service_registry.dart';
 import '../models/project.dart';
 import 'project_detail_page.dart';
-import 'create_project_dialog.dart'; // Add this to imports
+import 'create_project_dialog.dart';
 
 class ProjectsPage extends StatefulWidget {
-  final int? highlightProjectId; // Optional: highlight a specific project
+  final int? highlightProjectId;
 
   const ProjectsPage({Key? key, this.highlightProjectId}) : super(key: key);
 
@@ -20,6 +20,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
   bool _isLoading = true;
   String? _errorMessage;
   String _searchQuery = '';
+  int _selectedStatus = 2; // Default to status 2 (Active)
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -41,27 +42,25 @@ class _ProjectsPageState extends State<ProjectsPage> {
     });
 
     try {
-      // Load only projects with status 2
-      final projects = await ServiceRegistry().projectService.getByStatus(2);
-
-      // Debug logging
-      print('📊 Loaded ${projects.length} projects with status 2');
-      for (final project in projects) {
-        print(
-            'Project: ${project.name}, Status: ${project.status}, Priority: ${project.priority}');
-      }
-
+      final projects =
+          await ServiceRegistry().projectService.getByStatus(_selectedStatus);
       setState(() {
         _projects = projects;
         _isLoading = false;
       });
     } catch (e) {
-      print('❌ Error loading projects: $e');
       setState(() {
         _errorMessage = e.toString();
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _changeStatus(int status) async {
+    setState(() {
+      _selectedStatus = status;
+    });
+    await _loadProjects();
   }
 
   List<Project> get _filteredProjects {
@@ -75,77 +74,53 @@ class _ProjectsPageState extends State<ProjectsPage> {
     }).toList();
   }
 
+  String _getStatusText(int status) {
+    switch (status) {
+      case 1:
+        return 'Planning';
+      case 2:
+        return 'Active';
+      case 3:
+        return 'Completed';
+      default:
+        return 'Unknown';
+    }
+  }
+
+  Color _getStatusColor(int status) {
+    switch (status) {
+      case 1:
+        return Colors.orange;
+      case 2:
+        return Colors.green;
+      case 3:
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Active Projects'),
-        backgroundColor: Colors.green,
+        title: Text('${_getStatusText(_selectedStatus)} Projects'),
+        backgroundColor: _getStatusColor(_selectedStatus),
         foregroundColor: Colors.white,
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _loadProjects),
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () {
-              // TODO: Implement add project functionality
-              _showCreateProjectDialog();
-            },
-          ),
           PopupMenuButton<String>(
             onSelected: (value) {
-              switch (value) {
-                case 'all':
-                  _loadAllProjects();
-                  break;
-                case 'status2':
-                  _loadProjects();
-                  break;
-                case 'status1':
-                  _loadProjectsByStatus(1);
-                  break;
-                case 'status3':
-                  _loadProjectsByStatus(3);
-                  break;
-              }
+              // Handle other menu actions if needed
             },
             itemBuilder: (context) => [
               const PopupMenuItem(
-                value: 'status2',
+                value: 'settings',
                 child: Row(
                   children: [
-                    Icon(Icons.play_arrow, color: Colors.green),
+                    Icon(Icons.settings, color: Colors.grey),
                     SizedBox(width: 8),
-                    Text('Active Projects (Status 2)'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'all',
-                child: Row(
-                  children: [
-                    Icon(Icons.list, color: Colors.blue),
-                    SizedBox(width: 8),
-                    Text('All Projects'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'status1',
-                child: Row(
-                  children: [
-                    Icon(Icons.pause, color: Colors.orange),
-                    SizedBox(width: 8),
-                    Text('Status 1 Projects'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'status3',
-                child: Row(
-                  children: [
-                    Icon(Icons.check, color: Colors.grey),
-                    SizedBox(width: 8),
-                    Text('Status 3 Projects'),
+                    Text('Settings'),
                   ],
                 ),
               ),
@@ -156,9 +131,14 @@ class _ProjectsPageState extends State<ProjectsPage> {
       body: Column(
         children: [
           _buildSearchBar(),
-          _buildStatusIndicator(),
+          _buildSegmentedControl(),
           Expanded(child: _buildBody()),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showCreateProjectDialog,
+        backgroundColor: _getStatusColor(_selectedStatus),
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
@@ -213,36 +193,69 @@ class _ProjectsPageState extends State<ProjectsPage> {
     );
   }
 
-  Widget _buildStatusIndicator() {
+  Widget _buildSegmentedControl() {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.green[50],
+        color: Colors.white,
         border: Border(
-          bottom: BorderSide(color: Colors.green[200]!),
+          bottom: BorderSide(color: Colors.grey[200]!),
         ),
       ),
-      child: Row(
-        children: [
-          Icon(Icons.play_arrow, color: Colors.green[700], size: 20),
-          const SizedBox(width: 8),
-          Text(
-            'Showing Active Projects (Status 2)',
-            style: TextStyle(
-              color: Colors.green[700],
-              fontWeight: FontWeight.w500,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        padding: const EdgeInsets.all(4),
+        child: Row(
+          children: [
+            Expanded(
+              child: _buildSegment(1,
+                  'Planning (${_selectedStatus == 1 ? _projects.length : '?'})'),
             ),
-          ),
-          const Spacer(),
-          Text(
-            '${_projects.length} projects',
-            style: TextStyle(
-              color: Colors.green[600],
-              fontSize: 12,
+            Expanded(
+              child: _buildSegment(2,
+                  'Active (${_selectedStatus == 2 ? _projects.length : '?'})'),
             ),
+            Expanded(
+              child: _buildSegment(3,
+                  'Completed (${_selectedStatus == 3 ? _projects.length : '?'})'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSegment(int status, String text) {
+    final isActive = _selectedStatus == status;
+    return GestureDetector(
+      onTap: () => _changeStatus(status),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 2,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: isActive ? _getStatusColor(status) : Colors.grey[600],
+            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+            fontSize: 14,
           ),
-        ],
+        ),
       ),
     );
   }
@@ -293,8 +306,8 @@ class _ProjectsPageState extends State<ProjectsPage> {
             const SizedBox(height: 16),
             Text(
               _searchQuery.isNotEmpty
-                  ? 'No active projects found matching "$_searchQuery"'
-                  : 'No active projects yet',
+                  ? 'No projects found matching "$_searchQuery"'
+                  : 'No ${_getStatusText(_selectedStatus).toLowerCase()} projects yet',
               style: const TextStyle(fontSize: 18, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
@@ -302,7 +315,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
             Text(
               _searchQuery.isNotEmpty
                   ? 'Try a different search term'
-                  : 'Active projects with status 2 will appear here',
+                  : 'Projects with status $_selectedStatus will appear here',
               style: const TextStyle(fontSize: 14, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
@@ -340,70 +353,28 @@ class _ProjectsPageState extends State<ProjectsPage> {
     if (newProject != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content:
-                Text('Project "${newProject.name}" created successfully!')),
+          content: Text('Project "${newProject.name}" created successfully!'),
+        ),
       );
-      // Refresh the projects list
       _loadProjects();
     }
   }
 
-  Future<void> _loadAllProjects() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final projects = await ServiceRegistry().projectService.getAll();
-      setState(() {
-        _projects = projects;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = e.toString();
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _loadProjectsByStatus(int status) async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final projects =
-          await ServiceRegistry().projectService.getByStatus(status);
-      setState(() {
-        _projects = projects;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = e.toString();
-        _isLoading = false;
-      });
-    }
-  }
-
   void _openProjectDetails(Project project) {
-    // Navigate to project detail page
     if (project.id != null) {
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => ProjectDetailPage(
             projectId: project.id!,
+            chatId: project.chat!,
             projectName: project.name,
           ),
         ),
       );
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Project ID not available')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Project ID not available')),
+      );
     }
   }
 }
@@ -445,9 +416,8 @@ class ProjectCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: _getPriorityColor(
-                        project.priority,
-                      ).withOpacity(0.1),
+                      color:
+                          _getPriorityColor(project.priority).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
@@ -476,8 +446,7 @@ class ProjectCard extends StatelessWidget {
                             const SizedBox(width: 8),
                             _buildStatusChip(project.status),
                             const SizedBox(width: 8),
-                            if (project.organisation != null)
-                              _buildOrganisationChip(project.organisationId),
+                            _buildOrganisationChip(project.organisationId),
                           ],
                         ),
                       ],
@@ -495,9 +464,8 @@ class ProjectCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: _getDeadlineColor(
-                      project.deadline!,
-                    ).withOpacity(0.1),
+                    color:
+                        _getDeadlineColor(project.deadline!).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Row(
@@ -639,13 +607,13 @@ class ProjectCard extends StatelessWidget {
   Color _getStatusColor(int status) {
     switch (status) {
       case 1:
-        return Colors.orange; // Draft/Planning
+        return Colors.orange;
       case 2:
-        return Colors.green; // Active
+        return Colors.green;
       case 3:
-        return Colors.blue; // Completed
+        return Colors.blue;
       case 4:
-        return Colors.red; // Cancelled
+        return Colors.red;
       default:
         return Colors.grey;
     }
@@ -653,12 +621,16 @@ class ProjectCard extends StatelessWidget {
 
   String _getStatusText(int status) {
     switch (status) {
+      case 1:
+        return 'PLANNING';
       case 2:
         return 'ACTIVE';
       case 3:
         return 'COMPLETED';
+      case 4:
+        return 'CANCELLED';
       default:
-        return 'BACKLOG';
+        return 'UNKNOWN';
     }
   }
 
@@ -682,13 +654,13 @@ class ProjectCard extends StatelessWidget {
     final difference = deadline.difference(now).inDays;
 
     if (difference < 0) {
-      return Colors.red; // Overdue
+      return Colors.red;
     } else if (difference <= 3) {
-      return Colors.orange; // Due soon
+      return Colors.orange;
     } else if (difference <= 7) {
-      return Colors.yellow[700]!; // Due this week
+      return Colors.yellow[700]!;
     } else {
-      return Colors.green; // Plenty of time
+      return Colors.green;
     }
   }
 

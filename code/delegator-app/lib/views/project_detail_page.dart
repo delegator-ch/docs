@@ -9,11 +9,13 @@ import 'chat_detail_page.dart';
 
 class ProjectDetailPage extends StatefulWidget {
   final int projectId;
+  final int chatId;
   final String? projectName;
 
   const ProjectDetailPage({
     Key? key,
     required this.projectId,
+    required this.chatId,
     this.projectName,
   }) : super(key: key);
 
@@ -24,7 +26,7 @@ class ProjectDetailPage extends StatefulWidget {
 class _ProjectDetailPageState extends State<ProjectDetailPage> {
   Project? _project;
   List<Task> _tasks = [];
-  List<Chat> _chats = [];
+  Chat? _chat; // Changed from _chats to _chat
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -50,16 +52,17 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       final futures = await Future.wait([
         ServiceRegistry().projectService.getById(widget.projectId),
         ServiceRegistry().taskService.getByProjectId(widget.projectId),
+        ServiceRegistry().chatService.getById(widget.chatId), // Fixed
       ]);
 
       final project = futures[0] as Project;
       final tasks = futures[1] as List<Task>;
-      final chats = futures[2] as List<Chat>;
+      final chat = futures[2] as Chat; // Added this line
 
       setState(() {
         _project = project;
         _tasks = tasks;
-        _chats = chats;
+        _chat = chat; // Fixed assignment
         _isLoading = false;
       });
     } catch (e) {
@@ -78,7 +81,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
         actions: [
-          if (_chats.isNotEmpty && !_isLoading)
+          if (_chat != null && !_isLoading) // Fixed condition
             IconButton(
               icon: const Icon(Icons.chat),
               onPressed: () => _openProjectChat(),
@@ -261,7 +264,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                 Icon(Icons.chat, color: Colors.orange),
                 const SizedBox(width: 8),
                 Text(
-                  'Project Chats (${_chats.length})',
+                  'Project Chat', // Updated title
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -270,10 +273,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               ],
             ),
             const SizedBox(height: 12),
-            if (_chats.isEmpty)
-              const Text('No chats yet')
+            if (_chat == null) // Fixed condition
+              const Text('No chat available')
             else
-              ..._chats.map((chat) => _buildChatCard(chat)).toList(),
+              _buildChatCard(_chat!), // Fixed to use single chat
           ],
         ),
       ),
@@ -395,8 +398,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         const SizedBox(width: 12),
         Expanded(
           child: _buildStatCard(
-            'Chats',
-            _chats.length.toString(),
+            'Chat',
+            _chat != null ? '1' : '0', // Fixed for single chat
             Icons.chat,
             Colors.orange,
           ),
@@ -623,20 +626,19 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   }
 
   void _openProjectChat() {
-    if (_chats.isNotEmpty) {
-      // Open the first project chat (or you could show a dialog to select if multiple chats)
-      final chat = _chats.first;
+    if (_chat != null) {
+      // Fixed condition
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => ChatDetailPage(
-            chatId: chat.id!,
-            chatName: chat.name,
+            chatId: _chat!.id!,
+            chatName: _chat!.name,
           ),
         ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No chats available for this project')),
+        const SnackBar(content: Text('No chat available for this project')),
       );
     }
   }
