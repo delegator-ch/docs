@@ -178,49 +178,11 @@ class ChatService implements BaseService<Chat> {
     }
   }
 
-  /// Get chats by type
-  ///
-  /// Returns a list of chats with the specified [chatType]
-  Future<List<Chat>> getByChatType(String chatType) async {
-    if (chatType.isEmpty) {
-      throw ArgumentError('Chat type cannot be empty');
-    }
-
-    try {
-      final response = await _apiClient.get('chats/?chat_type=$chatType');
-
-      // Handle paginated response format
-      if (response is Map<String, dynamic> && response.containsKey('results')) {
-        final paginatedResponse = PaginatedResponse<Chat>.fromJson(
-          response,
-          (json) => Chat.fromJson(json),
-        );
-        return paginatedResponse.results;
-      } else if (response is List) {
-        // Handle direct list response (for backward compatibility)
-        return response.map((json) => Chat.fromJson(json)).toList();
-      } else {
-        throw Exception(
-          'Unexpected response format: ${response.runtimeType}. Expected paginated results.',
-        );
-      }
-    } on ApiException catch (e) {
-      _handleApiException('Failed to get chats of type $chatType', e);
-    } catch (e) {
-      throw Exception('Failed to get chats of type $chatType: $e');
-    }
-  }
-
   /// Validate chat data before sending to API
   void _validateChat(Chat chat) {
     if (chat.name.isEmpty) {
       throw ArgumentError('Chat name cannot be empty');
     }
-
-    if (chat.chatType.isEmpty) {
-      throw ArgumentError('Chat type cannot be empty');
-    }
-
     // Add more validation as needed
   }
 

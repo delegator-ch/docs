@@ -5,46 +5,87 @@ import 'project.dart';
 
 class Chat {
   final int? id;
+  final int? project;
   final int organisation;
   final String name;
   final DateTime created;
   final int minRoleLevel;
+  final Project? projectDetails;
   final Organisation? organisationDetails;
-  final String chatType;
+
+  /// Automatically determines chat type based on project_details
+  String get chatType => projectDetails != null ? 'Project' : 'Organisation';
 
   Chat({
     this.id,
+    this.project,
     required this.organisation,
     required this.name,
     DateTime? created,
     required this.minRoleLevel,
+    this.projectDetails,
     this.organisationDetails,
-    required this.chatType,
   }) : created = created ?? DateTime.now();
 
   /// Create a Chat from JSON map
   factory Chat.fromJson(Map<String, dynamic> json) {
-    return Chat(
-      id: json['id'],
-      organisation: json['organisation'],
-      name: json['name'],
-      created: json['created'] != null ? DateTime.parse(json['created']) : null,
-      minRoleLevel: json['min_role_level'],
-      organisationDetails: json['organisation_details'] != null
+    try {
+      print('Parsing Chat - raw json: $json');
+
+      final id = json['id'];
+      print('Parsed id: $id');
+
+      final project = json['project'];
+      print('Parsed project: $project');
+
+      final organisation = json['organisation'];
+      print('Parsed organisation: $organisation');
+
+      final name = json['name'];
+      print('Parsed name: $name');
+
+      final created =
+          json['created'] != null ? DateTime.parse(json['created']) : null;
+      print('Parsed created: $created');
+
+      final minRoleLevel = json['min_role_level'];
+      print('Parsed minRoleLevel: $minRoleLevel');
+
+      final projectDetails = json['project_details'] != null
+          ? Project.fromJson(json['project_details'])
+          : null;
+      print('Parsed projectDetails: $projectDetails');
+
+      final organisationDetails = json['organisation_details'] != null
           ? Organisation.fromJson(json['organisation_details'])
-          : null,
-      chatType: json['chat_type'],
-    );
+          : null;
+      print('Parsed organisationDetails: $organisationDetails');
+
+      return Chat(
+        id: id,
+        project: project,
+        organisation: organisation,
+        name: name,
+        created: created,
+        minRoleLevel: minRoleLevel,
+        projectDetails: projectDetails,
+        organisationDetails: organisationDetails,
+      );
+    } catch (e, stackTrace) {
+      print('Chat.fromJson error: $e');
+      print('Stack trace: $stackTrace');
+      rethrow;
+    }
   }
 
   /// Convert Chat to JSON map
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = <String, dynamic>{};
     if (id != null) data['id'] = id;
+    if (project != null) data['project'] = project;
     data['organisation'] = organisation;
     data['name'] = name;
     data['min_role_level'] = minRoleLevel;
-    data['chat_type'] = chatType;
     return data;
   }
 
@@ -58,23 +99,23 @@ class Chat {
     int? minRoleLevel,
     Project? projectDetails,
     Organisation? organisationDetails,
-    String? chatType,
   }) {
     return Chat(
       id: id ?? this.id,
+      project: project ?? this.project,
       organisation: organisation ?? this.organisation,
       name: name ?? this.name,
       created: created ?? this.created,
       minRoleLevel: minRoleLevel ?? this.minRoleLevel,
+      projectDetails: projectDetails ?? this.projectDetails,
       organisationDetails: organisationDetails ?? this.organisationDetails,
-      chatType: chatType ?? this.chatType,
     );
   }
 
   @override
   String toString() {
     return 'Chat{id: $id, name: "$name", organisation: $organisation, '
-        'type: $chatType, created: ${created.toIso8601String()}}';
+        'created: ${created.toIso8601String()}}';
   }
 
   @override
@@ -82,17 +123,17 @@ class Chat {
     if (identical(this, other)) return true;
     return other is Chat &&
         other.id == id &&
+        other.project == project &&
         other.organisation == organisation &&
         other.name == name &&
-        other.minRoleLevel == minRoleLevel &&
-        other.chatType == chatType;
+        other.minRoleLevel == minRoleLevel;
   }
 
   @override
   int get hashCode =>
       id.hashCode ^
+      project.hashCode ^
       organisation.hashCode ^
       name.hashCode ^
-      minRoleLevel.hashCode ^
-      chatType.hashCode;
+      minRoleLevel.hashCode;
 }

@@ -29,18 +29,53 @@ class Project {
   });
 
   factory Project.fromJson(Map<String, dynamic> json) {
-    return Project(
-        id: json['id'],
-        name: json['name'],
-        event: json['event'],
-        deadline:
-            json['deadline'] != null ? DateTime.parse(json['deadline']) : null,
-        priority: json['priority'] ?? 0,
-        eventDetails: json['event_details'],
-        organisationId: json['organisation'],
-        organisation: null, // Will be set later via withOrganisation
-        status: json['status'],
-        chat: json['chat']);
+    try {
+      print('Parsing Project - raw json: $json');
+
+      final id = json['id'];
+      print('Parsed id: $id');
+
+      final name = json['name'];
+      print('Parsed name: $name');
+
+      final event = json['event'];
+      print('Parsed event: $event');
+
+      final deadline =
+          json['deadline'] != null ? DateTime.parse(json['deadline']) : null;
+      print('Parsed deadline: $deadline');
+
+      final priority = json['priority'] ?? 0;
+      print('Parsed priority: $priority');
+
+      final eventDetails = json['event_details'];
+      print('Parsed eventDetails: $eventDetails');
+
+      final organisationId = json['organisation'];
+      print('Parsed organisationId: $organisationId');
+
+      final status = json['status'];
+      print('Parsed status: $status');
+
+      final chat = json['chat'];
+      print('Parsed chat: $chat');
+
+      return Project(
+          id: id,
+          name: name,
+          event: event,
+          deadline: deadline,
+          priority: priority,
+          eventDetails: eventDetails,
+          organisationId: organisationId,
+          organisation: null,
+          status: status,
+          chat: chat);
+    } catch (e, stackTrace) {
+      print('Project.fromJson error2: $e');
+      print('Stack trace: $stackTrace');
+      rethrow;
+    }
   }
 
   Map<String, dynamic> toJson() {

@@ -68,7 +68,6 @@ void main() {
           organisation: organisationId,
           name: 'Test Integration Chat',
           minRoleLevel: 5,
-          chatType: 'organisation',
         );
 
         print('🆕 Creating new chat for organisation $organisationId');
@@ -128,27 +127,6 @@ void main() {
       },
     );
 
-    test('getByChatType should return chats of a specific type', () async {
-      try {
-        // Act
-        final chatType =
-            'organisation'; // Based on the API response you provided
-        final chats = await chatService.getByChatType(chatType);
-
-        // Print details for debugging
-        print('✅ Got ${chats.length} chats of type $chatType');
-
-        // Assert
-        expect(chats, isA<List<Chat>>());
-        for (var chat in chats) {
-          expect(chat.chatType, equals(chatType));
-        }
-      } catch (e) {
-        print('❌ Test failed: $e');
-        fail('Failed to fetch chats by type: $e');
-      }
-    });
-
     test('update chat should modify chat properties', () async {
       // For this test, we'll use a fixed organisation ID
       final organisationId = 5; // Based on the API response you provided
@@ -159,7 +137,6 @@ void main() {
           organisation: organisationId,
           name: 'Original Chat Name',
           minRoleLevel: 5,
-          chatType: 'organisation',
         );
 
         print('🆕 Creating chat for update test');
@@ -174,7 +151,6 @@ void main() {
           organisation: organisationId,
           name: 'Updated Chat Name', // Changed name
           minRoleLevel: 5,
-          chatType: 'organisation',
         );
 
         print('🔄 Updating chat name');

@@ -83,17 +83,25 @@ class EventSerializer(serializers.ModelSerializer):
 
 class ChatSerializer(serializers.ModelSerializer):
     organisation_details = OrganisationSerializer(source='organisation', read_only=True)
-    project_id = serializers.SerializerMethodField()  # Add project ID
+    project_details = serializers.SerializerMethodField()  # Add this
     
     class Meta:
         model = Chat
         fields = ['id', 'organisation', 'name', 'created', 'min_role_level',
-                 'organisation_details', 'project_id']  # Add project_id
+                 'organisation_details', 'project_details']  # Add project_details
     
-    def get_project_id(self, obj):
-        # Get the project that references this chat (reverse OneToOne lookup)
+    def get_project_details(self, obj):
         try:
-            return obj.project.id if hasattr(obj, 'project') else None
+            if hasattr(obj, 'project') and obj.project:
+                return {
+                    'id': obj.project.id,
+                    'name': obj.project.name,
+                    'priority': obj.project.priority,
+                    'deadline': obj.project.deadline,
+                    'organisation': obj.chat.organisation,
+                    'status': obj.project.status.id if obj.project.status else None
+                }
+            return None
         except:
             return None
             

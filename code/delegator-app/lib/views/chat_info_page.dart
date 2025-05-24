@@ -10,8 +10,11 @@ class ChatInfoPage extends StatefulWidget {
   final int chatId;
   final String chatName;
 
-  const ChatInfoPage({Key? key, required this.chatId, required this.chatName})
-      : super(key: key);
+  const ChatInfoPage({
+    Key? key,
+    required this.chatId,
+    required this.chatName,
+  }) : super(key: key);
 
   @override
   _ChatInfoPageState createState() => _ChatInfoPageState();
@@ -41,9 +44,8 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
       final chat = await ServiceRegistry().chatService.getById(widget.chatId);
 
       // Load messages to get participant information
-      final messages = await ServiceRegistry().messageService.getByChatId(
-            widget.chatId,
-          );
+      final messages =
+          await ServiceRegistry().messageService.getByChatId(widget.chatId);
 
       // Get unique participants from messages
       final participantIds = messages.map((m) => m.user).toSet().toList();
@@ -51,13 +53,11 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
       // For this demo, we'll create mock participants since we don't have a user service
       // In a real app, you'd fetch user details for each participant ID
       final participants = participantIds
-          .map(
-            (id) => User(
-              id: id,
-              username: 'User $id',
-              email: 'user$id@example.com',
-            ),
-          )
+          .map((id) => User(
+                id: id,
+                username: 'User $id',
+                email: 'user$id@example.com',
+              ))
           .toList();
 
       setState(() {
@@ -116,7 +116,10 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
             const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Text(_errorMessage!, textAlign: TextAlign.center),
+              child: Text(
+                _errorMessage!,
+                textAlign: TextAlign.center,
+              ),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
@@ -164,7 +167,10 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
           const SizedBox(height: 16),
           Text(
             widget.chatName,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
@@ -198,7 +204,7 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
           Row(
             children: [
               Icon(
-                Icons.work,
+                _chat!.project != null ? Icons.work : Icons.business,
                 color: Colors.blue[700],
                 size: 20,
               ),
@@ -225,8 +231,21 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
               () => _navigateToOrganisation(_chat!.organisation),
             ),
 
+          // Project context (if this chat belongs to a project)
+          if (_chat!.project != null && _chat!.projectDetails != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: _buildContextTile(
+                'This chat is part of project',
+                _chat!.projectDetails!.name ?? 'Unknown Project',
+                Icons.work,
+                Colors.green,
+                () => _navigateToProject(_chat!.project!),
+              ),
+            ),
+
           // Fallback if we don't have detailed organization info
-          if (_chat!.organisationDetails == null)
+          if (_chat!.organisationDetails == null && _chat!.project == null)
             _buildContextTile(
               'This chat is part of organisation',
               'Organisation #${_chat!.organisation}',
@@ -273,7 +292,10 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
                 children: [
                   Text(
                     description,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -286,7 +308,11 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
                 ],
               ),
             ),
-            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
+            Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: Colors.grey[400],
+            ),
           ],
         ),
       ),
@@ -301,20 +327,19 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
         children: [
           Text(
             'Chat Details',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 12),
           _buildDetailRow('Chat ID', _chat?.id?.toString() ?? 'Unknown'),
           _buildDetailRow('Type', _chat?.chatType ?? 'Unknown'),
           _buildDetailRow(
-            'Organisation',
-            _chat?.organisation.toString() ?? 'Unknown',
-          ),
-          //_buildDetailRow('Project', _chat?.project?.toString() ?? 'None'),
+              'Organisation', _chat?.organisation?.toString() ?? 'Unknown'),
+          _buildDetailRow('Project', _chat?.project?.toString() ?? 'None'),
           _buildDetailRow(
-            'Min Role Level',
-            _chat?.minRoleLevel.toString() ?? 'Unknown',
-          ),
+              'Min Role Level', _chat?.minRoleLevel?.toString() ?? 'Unknown'),
           _buildDetailRow('Created', _formatDate(_chat?.created)),
           _buildDetailRow('Total Messages', _messages.length.toString()),
         ],
@@ -370,8 +395,7 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
                   // TODO: Implement add participant functionality
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Add participant coming soon!'),
-                    ),
+                        content: Text('Add participant coming soon!')),
                   );
                 },
                 child: const Text('Add'),
@@ -379,9 +403,8 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
             ],
           ),
           const SizedBox(height: 8),
-          ...(_participants.map(
-            (participant) => _buildParticipantTile(participant),
-          )),
+          ...(_participants
+              .map((participant) => _buildParticipantTile(participant))),
         ],
       ),
     );
@@ -433,16 +456,25 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
         children: [
           const Text(
             'Media & Files',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _buildMediaCard('Photos', Icons.photo, 0)),
+              Expanded(
+                child: _buildMediaCard('Photos', Icons.photo, 0),
+              ),
               const SizedBox(width: 12),
-              Expanded(child: _buildMediaCard('Videos', Icons.videocam, 0)),
+              Expanded(
+                child: _buildMediaCard('Videos', Icons.videocam, 0),
+              ),
               const SizedBox(width: 12),
-              Expanded(child: _buildMediaCard('Files', Icons.attach_file, 0)),
+              Expanded(
+                child: _buildMediaCard('Files', Icons.attach_file, 0),
+              ),
             ],
           ),
         ],
@@ -460,12 +492,18 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
             const SizedBox(height: 8),
             Text(
               count.toString(),
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
               title,
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+              ),
             ),
           ],
         ),
@@ -481,15 +519,23 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
         children: [
           const Text(
             'Actions',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 12),
-          _buildActionTile('Mute Notifications', Icons.notifications_off, () {
-            // TODO: Implement mute functionality
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Mute functionality coming soon!')),
-            );
-          }),
+          _buildActionTile(
+            'Mute Notifications',
+            Icons.notifications_off,
+            () {
+              // TODO: Implement mute functionality
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text('Mute functionality coming soon!')),
+              );
+            },
+          ),
           _buildActionTile(
             'Clear Chat History',
             Icons.clear_all,
@@ -541,10 +587,7 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text(
-              'Clear',
-              style: TextStyle(color: Colors.orange),
-            ),
+            child: const Text('Clear', style: TextStyle(color: Colors.orange)),
           ),
         ],
       ),
@@ -554,8 +597,7 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
       // TODO: Implement clear history functionality
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Clear history functionality coming soon!'),
-        ),
+            content: Text('Clear history functionality coming soon!')),
       );
     }
   }
@@ -595,7 +637,10 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Navigate to organisation $organisationId'),
-        action: SnackBarAction(label: 'OK', onPressed: () {}),
+        action: SnackBarAction(
+          label: 'OK',
+          onPressed: () {},
+        ),
       ),
     );
   }
@@ -605,7 +650,10 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Navigate to project $projectId'),
-        action: SnackBarAction(label: 'OK', onPressed: () {}),
+        action: SnackBarAction(
+          label: 'OK',
+          onPressed: () {},
+        ),
       ),
     );
   }
