@@ -204,7 +204,7 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
           Row(
             children: [
               Icon(
-                _chat!.project != null ? Icons.work : Icons.business,
+                _chat!.isOrgChat ? Icons.work : Icons.business,
                 color: Colors.blue[700],
                 size: 20,
               ),
@@ -222,7 +222,7 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
           const SizedBox(height: 12),
 
           // Organization context
-          if (_chat!.organisationDetails != null)
+          if (_chat!.isOrgChat)
             _buildContextTile(
               'This chat is part of your organisation',
               _chat!.organisationDetails!.name ?? 'Unknown Organisation',
@@ -232,7 +232,7 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
             ),
 
           // Project context (if this chat belongs to a project)
-          if (_chat!.project != null && _chat!.projectDetails != null)
+          if (!_chat!.isOrgChat)
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: _buildContextTile(
@@ -245,7 +245,7 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
             ),
 
           // Fallback if we don't have detailed organization info
-          if (_chat!.organisationDetails == null && _chat!.project == null)
+          if (_chat!.organisationDetails == null)
             _buildContextTile(
               'This chat is part of organisation',
               'Organisation #${_chat!.organisation}',

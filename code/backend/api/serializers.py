@@ -88,21 +88,28 @@ class ChatSerializer(serializers.ModelSerializer):
     class Meta:
         model = Chat
         fields = ['id', 'organisation', 'name', 'created', 'min_role_level',
-                 'organisation_details', 'project_details']  # Add project_details
+                 'organisation_details', 'project_details', 'project']  # Add project_details
     
     def get_project_details(self, obj):
+        print(f"Chat ID: {obj.id}")
+        print(f"Has project attr: {hasattr(obj, 'project')}")
+        print(f"Project value: {getattr(obj, 'project', 'NOT FOUND')}")
+        
         try:
             if hasattr(obj, 'project') and obj.project:
+                print("Project exists, returning details")
                 return {
                     'id': obj.project.id,
                     'name': obj.project.name,
                     'priority': obj.project.priority,
                     'deadline': obj.project.deadline,
-                    'organisation': obj.chat.organisation,
+                    'organisation': obj.organisation.id,
                     'status': obj.project.status.id if obj.project.status else None
                 }
+            print("No project or project is None")
             return None
-        except:
+        except Exception as e:
+            print(f"Exception: {e}")
             return None
             
 

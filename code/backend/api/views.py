@@ -273,24 +273,24 @@ class ChatViewSet(viewsets.ModelViewSet):
         user = self.request.user
         
         if user.is_staff:
-            return Chat.objects.all()
+            return Chat.objects.select_related('project', 'organisation').all()
         
         # Direct chat access
         direct_chats = Chat.objects.filter(
             chatuser__user=user, 
             chatuser__view=True
-        )
+        ).select_related('project', 'organisation')
         
-        # Project-based chat access - FIXED for OneToOne relationship
+        # Project-based chat access
         project_chats = Chat.objects.filter(
-            project__userproject__user=user  # Access via reverse OneToOne
-        )
+            project__userproject__user=user
+        ).select_related('project', 'organisation')
         
         # Organisation-based access
         org_chats = Chat.objects.filter(
             organisation__userorganisation__user=user,
             organisation__userorganisation__role__level__lte=F('min_role_level')
-        )
+        ).select_related('project', 'organisation')
         
         return (direct_chats | project_chats | org_chats).distinct()
 

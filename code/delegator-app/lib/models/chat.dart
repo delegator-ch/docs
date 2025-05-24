@@ -14,7 +14,8 @@ class Chat {
   final Organisation? organisationDetails;
 
   /// Automatically determines chat type based on project_details
-  String get chatType => projectDetails != null ? 'Project' : 'Organisation';
+  bool get isOrgChat => project == null ? true : false;
+  String get chatType => isOrgChat ? 'Organisation' : 'Project';
 
   Chat({
     this.id,
