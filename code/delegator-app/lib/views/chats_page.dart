@@ -33,9 +33,35 @@ class _ChatsPageState extends State<ChatsPage> {
     });
 
     try {
-      final chats = await ServiceRegistry().chatService.getAll();
+      final allChats = await ServiceRegistry().chatService.getAll();
+
+      // Filter out chats from completed projects (status 3)
+      List<Chat> filteredChats = [];
+
+      for (final chat in allChats) {
+        bool shouldInclude = true;
+
+        // If it's a project chat, check if the project is completed
+        if (chat.project != null) {
+          try {
+            final project =
+                await ServiceRegistry().projectService.getById(chat.project!);
+            if (project.status == 3) {
+              shouldInclude = false;
+            }
+          } catch (e) {
+            // If we can't load the project, include the chat
+            print('Error loading project ${chat.project}: $e');
+          }
+        }
+
+        if (shouldInclude) {
+          filteredChats.add(chat);
+        }
+      }
+
       setState(() {
-        _chats = chats;
+        _chats = filteredChats;
       });
 
       // Load last messages for each chat
@@ -57,8 +83,8 @@ class _ChatsPageState extends State<ChatsPage> {
       if (chat.id != null) {
         try {
           final messages = await ServiceRegistry().messageService.getByChatId(
-            chat.id!,
-          );
+                chat.id!,
+              );
           if (messages.isNotEmpty) {
             _lastMessages[chat.id!] = messages.last;
             // For demo purposes, set random unread counts
@@ -90,21 +116,20 @@ class _ChatsPageState extends State<ChatsPage> {
             onSelected: (value) {
               // TODO: Handle menu actions
             },
-            itemBuilder:
-                (context) => [
-                  const PopupMenuItem(
-                    value: 'new_group',
-                    child: Text('New Group'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'new_broadcast',
-                    child: Text('New Broadcast'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'settings',
-                    child: Text('Settings'),
-                  ),
-                ],
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'new_group',
+                child: Text('New Group'),
+              ),
+              const PopupMenuItem(
+                value: 'new_broadcast',
+                child: Text('New Broadcast'),
+              ),
+              const PopupMenuItem(
+                value: 'settings',
+                child: Text('Settings'),
+              ),
+            ],
           ),
         ],
       ),
@@ -194,12 +219,11 @@ class _ChatsPageState extends State<ChatsPage> {
     if (chat.id != null) {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder:
-              (context) => ChatDetailPage(
-                chatId: chat.id!,
-                chatName: chat.name,
-                avatarUrl: null, // You can add avatar support later
-              ),
+          builder: (context) => ChatDetailPage(
+            chatId: chat.id!,
+            chatName: chat.name,
+            avatarUrl: null, // You can add avatar support later
+          ),
         ),
       );
     }
