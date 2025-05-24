@@ -112,40 +112,9 @@ class _ChatsPageState extends State<ChatsPage> {
             },
           ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _loadChats),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              // TODO: Handle menu actions
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'new_group',
-                child: Text('New Group'),
-              ),
-              const PopupMenuItem(
-                value: 'new_broadcast',
-                child: Text('New Broadcast'),
-              ),
-              const PopupMenuItem(
-                value: 'settings',
-                child: Text('Settings'),
-              ),
-            ],
-          ),
         ],
       ),
       body: _buildBody(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: Implement new chat functionality
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('New chat functionality coming soon!'),
-            ),
-          );
-        },
-        backgroundColor: Colors.blue,
-        child: const Icon(Icons.chat, color: Colors.white),
-      ),
     );
   }
 
