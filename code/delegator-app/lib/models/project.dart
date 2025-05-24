@@ -13,6 +13,7 @@ class Project {
   final int status;
   final Organisation?
       organisation; // Changed from Map<String, dynamic>? to Organisation
+  final int? chat;
 
   Project({
     this.id,
@@ -24,6 +25,7 @@ class Project {
     required this.organisationId,
     this.organisation,
     this.status = 1,
+    this.chat,
   });
 
   factory Project.fromJson(Map<String, dynamic> json) {
@@ -37,7 +39,8 @@ class Project {
         eventDetails: json['event_details'],
         organisationId: json['organisation'],
         organisation: null, // Will be set later via withOrganisation
-        status: json['status']);
+        status: json['status'],
+        chat: json['chat']);
   }
 
   Map<String, dynamic> toJson() {
@@ -50,6 +53,7 @@ class Project {
     data['event_details'] = eventDetails;
     data['organisation'] = organisationId;
     data['status'] = status;
+    data['chat'] = chat;
     return data;
   }
 

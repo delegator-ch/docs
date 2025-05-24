@@ -50,7 +50,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       final futures = await Future.wait([
         ServiceRegistry().projectService.getById(widget.projectId),
         ServiceRegistry().taskService.getByProjectId(widget.projectId),
-        ServiceRegistry().chatService.getByProjectId(widget.projectId),
       ]);
 
       final project = futures[0] as Project;

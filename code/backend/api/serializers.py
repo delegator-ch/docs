@@ -81,32 +81,33 @@ class EventSerializer(serializers.ModelSerializer):
         model = Event
         fields = ['id', 'calendar', 'start', 'end', 'is_gig', 'calendar_details']
 
-class ProjectSerializer(serializers.ModelSerializer):
-    event_details = EventSerializer(source='event', read_only=True)
-    
-    class Meta:
-        model = Project
-        fields = ['id', 'name', 'event', 'deadline', 'priority', 'event_details', 'organisation', 'status']
-
 class ChatSerializer(serializers.ModelSerializer):
-    project_details = ProjectSerializer(source='project', read_only=True)
     organisation_details = OrganisationSerializer(source='organisation', read_only=True)
-    chat_type = serializers.SerializerMethodField()
+    project_id = serializers.SerializerMethodField()  # Add project ID
     
     class Meta:
         model = Chat
-        fields = ['id', 'project', 'organisation', 'name', 'created', 'min_role_level',
-                 'project_details', 'organisation_details', 'chat_type']
-        extra_kwargs = {
-            'project': {'required': False},
-            'organisation': {'required': True},
-        }
+        fields = ['id', 'organisation', 'name', 'created', 'min_role_level',
+                 'organisation_details', 'project_id']  # Add project_id
     
-    def get_chat_type(self, obj):
-        if obj.project:
-            return 'project'
-        return 'organisation'
+    def get_project_id(self, obj):
+        # Get the project that references this chat (reverse OneToOne lookup)
+        try:
+            return obj.project.id if hasattr(obj, 'project') else None
+        except:
+            return None
+            
+
+class ProjectSerializer(serializers.ModelSerializer):
+    event_details = EventSerializer(source='event', read_only=True)
+    chat_details = ChatSerializer(source='chat', read_only=True)  # Add chat details
     
+    class Meta:
+        model = Project
+        fields = ['id', 'name', 'event', 'deadline', 'priority', 'event_details', 
+                 'organisation', 'status', 'chat', 'chat_details']  # Add chat fields
+
+
 class ChatUserSerializer(serializers.ModelSerializer):
     user_details = UserSerializer(source='user', read_only=True)
     chat_details = ChatSerializer(source='chat', read_only=True)
@@ -201,7 +202,7 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Project
-        fields = ['id', 'name', 'event', 'deadline', 'priority', 'event_details', 'tasks', 'organisation', 'status']
+        fields = ['id', 'name', 'event', 'deadline', 'priority', 'event_details', 'tasks', 'organisation', 'status', 'chat']
 
 class EventDetailSerializer(serializers.ModelSerializer):
     calendar_details = CalendarSerializer(source='calendar', read_only=True)

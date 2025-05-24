@@ -287,8 +287,8 @@ class Project(models.Model):
 
 @receiver(post_save, sender=Project)
 def create_project_chat(sender, instance, created, **kwargs):
-    """Automatically create a chat when a new project is created"""
-    if created and not hasattr(instance, 'chat'):
+    print(f"Signal triggered: created={created}, has_chat={hasattr(instance, 'chat')}")
+    if created and not instance.chat:  # Changed this line
         chat = Chat.objects.create(
             organisation=instance.organisation,
             name=f"Project Chat: {instance.name}",

@@ -178,39 +178,6 @@ class ChatService implements BaseService<Chat> {
     }
   }
 
-  /// Get chats for a specific project
-  ///
-  /// Returns a list of chats belonging to the project with [projectId]
-  Future<List<Chat>> getByProjectId(int projectId) async {
-    if (projectId <= 0) {
-      throw ArgumentError('Project ID must be a positive integer');
-    }
-
-    try {
-      final response = await _apiClient.get('chats/?project=$projectId');
-
-      // Handle paginated response format
-      if (response is Map<String, dynamic> && response.containsKey('results')) {
-        final paginatedResponse = PaginatedResponse<Chat>.fromJson(
-          response,
-          (json) => Chat.fromJson(json),
-        );
-        return paginatedResponse.results;
-      } else if (response is List) {
-        // Handle direct list response (for backward compatibility)
-        return response.map((json) => Chat.fromJson(json)).toList();
-      } else {
-        throw Exception(
-          'Unexpected response format: ${response.runtimeType}. Expected paginated results.',
-        );
-      }
-    } on ApiException catch (e) {
-      _handleApiException('Failed to get chats for project $projectId', e);
-    } catch (e) {
-      throw Exception('Failed to get chats for project $projectId: $e');
-    }
-  }
-
   /// Get chats by type
   ///
   /// Returns a list of chats with the specified [chatType]

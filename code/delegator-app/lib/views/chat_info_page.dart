@@ -198,7 +198,7 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
           Row(
             children: [
               Icon(
-                _chat!.project != null ? Icons.work : Icons.business,
+                Icons.work,
                 color: Colors.blue[700],
                 size: 20,
               ),
@@ -225,21 +225,8 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
               () => _navigateToOrganisation(_chat!.organisation),
             ),
 
-          // Project context (if this chat belongs to a project)
-          if (_chat!.project != null && _chat!.projectDetails != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: _buildContextTile(
-                'This chat is part of project',
-                _chat!.projectDetails!.name ?? 'Unknown Project',
-                Icons.work,
-                Colors.green,
-                () => _navigateToProject(_chat!.project!),
-              ),
-            ),
-
           // Fallback if we don't have detailed organization info
-          if (_chat!.organisationDetails == null && _chat!.project == null)
+          if (_chat!.organisationDetails == null)
             _buildContextTile(
               'This chat is part of organisation',
               'Organisation #${_chat!.organisation}',
@@ -323,7 +310,7 @@ class _ChatInfoPageState extends State<ChatInfoPage> {
             'Organisation',
             _chat?.organisation.toString() ?? 'Unknown',
           ),
-          _buildDetailRow('Project', _chat?.project?.toString() ?? 'None'),
+          //_buildDetailRow('Project', _chat?.project?.toString() ?? 'None'),
           _buildDetailRow(
             'Min Role Level',
             _chat?.minRoleLevel.toString() ?? 'Unknown',

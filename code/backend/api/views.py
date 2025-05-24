@@ -262,6 +262,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
         return super().create(request, *args, **kwargs)
 
 # Is only a view
+# In views.py - Update ChatViewSet:
+
 class ChatViewSet(viewsets.ModelViewSet):
     queryset = Chat.objects.all()
     serializer_class = ChatSerializer
@@ -279,12 +281,12 @@ class ChatViewSet(viewsets.ModelViewSet):
             chatuser__view=True
         )
         
-        # Project-based chat access
+        # Project-based chat access - FIXED for OneToOne relationship
         project_chats = Chat.objects.filter(
-            project__userproject__user=user
+            project__userproject__user=user  # Access via reverse OneToOne
         )
         
-        # Organisation-based access: role level must match or exceed Chat.min_role_level
+        # Organisation-based access
         org_chats = Chat.objects.filter(
             organisation__userorganisation__user=user,
             organisation__userorganisation__role__level__lte=F('min_role_level')
@@ -297,7 +299,7 @@ class ChatViewSet(viewsets.ModelViewSet):
         org_id = request.data.get('organisation')
         project_id = request.data.get('project')
 
-        # 🛡️ Check organisation access
+        # Check organisation access
         if org_id:
             has_org_access = UserOrganisation.objects.filter(
                 user=user,
@@ -307,19 +309,6 @@ class ChatViewSet(viewsets.ModelViewSet):
             if not has_org_access and not user.is_staff:
                 return Response(
                     {"detail": "You don't have access to this organisation."},
-                    status=status.HTTP_403_FORBIDDEN
-                )
-
-        # 🛡️ Check project access
-        if project_id:
-            has_project_access = UserProject.objects.filter(
-                user=user,
-                project_id=project_id
-            ).exists()
-
-            if not has_project_access and not user.is_staff:
-                return Response(
-                    {"detail": "You don't have access to this project."},
                     status=status.HTTP_403_FORBIDDEN
                 )
 
