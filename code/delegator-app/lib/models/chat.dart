@@ -35,14 +35,12 @@ class Chat {
       name: json['name'],
       created: json['created'] != null ? DateTime.parse(json['created']) : null,
       minRoleLevel: json['min_role_level'],
-      projectDetails:
-          json['project_details'] != null
-              ? Project.fromJson(json['project_details'])
-              : null,
-      organisationDetails:
-          json['organisation_details'] != null
-              ? Organisation.fromJson(json['organisation_details'])
-              : null,
+      projectDetails: json['project_details'] != null
+          ? Project.fromJson(json['project_details'])
+          : null,
+      organisationDetails: json['organisation_details'] != null
+          ? Organisation.fromJson(json['organisation_details'])
+          : null,
       chatType: json['chat_type'],
     );
   }

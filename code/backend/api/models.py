@@ -13,6 +13,7 @@ import logging
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from .calendar_token import CalendarSubscription
+from django.db.models.signals import post_save
 
 ROLE_LEVEL_CORE_TEAM = 2    # Long-term members
 ROLE_LEVEL_TEAM = 3   # Short-term members
@@ -213,30 +214,11 @@ class Status(models.Model):
     def __str__(self):
         return self.name
 
-# Only access (CRUD) on projectes your are added to
-class Project(models.Model):
 
-    users = models.ManyToManyField(
-        settings.AUTH_USER_MODEL,
-        through='UserProject',
-        related_name='projects'
-    )    
-
-    status = models.ForeignKey(Status, on_delete=models.CASCADE, blank=True)
-    name = models.CharField(max_length=255)
-    event = models.ForeignKey(Event, on_delete=models.SET_NULL, null=True, blank=True)
-    deadline = models.DateTimeField(null=True, blank=True)
-    priority = models.IntegerField(default=0)
-    organisation = models.ForeignKey(Organisation, on_delete=models.CASCADE)
-
-    def __str__(self):
-        return f"Project {self.id}"
-
-# Chat access via org or project and exlcuded via ChatUser
+ # Chat access via org or project and exlcuded via ChatUser
 # Chat are created automaticly on a project or they belong to the org
 # Each chat alwazs belongs to a org
 class Chat(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, null=True, blank=True)
     organisation = models.ForeignKey(Organisation, on_delete=models.CASCADE)
     name = models.CharField(max_length=255, default="Chat")
     created = models.DateTimeField(auto_now_add=True)
@@ -281,7 +263,40 @@ class Chat(models.Model):
             if user_org and user_org.role.level <= self.min_role_level:
                 return True
                 
-        return False
+        return False  
+
+# Only access (CRUD) on projectes your are added to
+class Project(models.Model):
+
+    users = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        through='UserProject',
+        related_name='projects'
+    )    
+
+    status = models.ForeignKey(Status, on_delete=models.CASCADE, blank=True)
+    name = models.CharField(max_length=255)
+    event = models.ForeignKey(Event, on_delete=models.SET_NULL, null=True, blank=True)
+    deadline = models.DateTimeField(null=True, blank=True)
+    priority = models.IntegerField(default=0)
+    organisation = models.ForeignKey(Organisation, on_delete=models.CASCADE)
+    chat = models.OneToOneField(Chat, on_delete=models.CASCADE, null=True, blank=True)
+
+    def __str__(self):
+        return f"Project {self.id}"
+
+@receiver(post_save, sender=Project)
+def create_project_chat(sender, instance, created, **kwargs):
+    """Automatically create a chat when a new project is created"""
+    if created and not hasattr(instance, 'chat'):
+        chat = Chat.objects.create(
+            organisation=instance.organisation,
+            name=f"Project Chat: {instance.name}",
+            min_role_level=ROLE_LEVEL_TEAM
+        )
+        instance.chat = chat
+        instance.save()
+
 
 # Only can see all your chats by user_id or all chats your added to
 # Only can add and remove user on chats with speific roles

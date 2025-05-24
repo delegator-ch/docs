@@ -2,6 +2,7 @@
 
 import 'package:delegator/services/chat_service.dart';
 import 'package:delegator/services/message_service.dart';
+import 'package:delegator/services/organisation_service.dart';
 
 import 'api_client.dart';
 import 'auth_service.dart';
@@ -29,6 +30,7 @@ class ServiceRegistry {
   late final TaskService _taskService;
   late final MessageService _messageService;
   late final ChatService _chatService;
+  late final OrganisationService _organisationService;
 
   // Initialization flag
   bool _isInitialized = false;
@@ -49,6 +51,7 @@ class ServiceRegistry {
     _taskService = TaskService(apiClient: _apiClient);
     _messageService = MessageService(apiClient: _apiClient);
     _chatService = ChatService(apiClient: _apiClient);
+    _organisationService = OrganisationService(apiClient: _apiClient);
 
     _isInitialized = true;
     print("✅ ServiceRegistry initialized successfully");
@@ -94,6 +97,11 @@ class ServiceRegistry {
   MessageService get messageService {
     _checkInitialization();
     return _messageService;
+  }
+
+  OrganisationService get organisationService {
+    _checkInitialization();
+    return _organisationService;
   }
 
   /// Check if user is currently logged in

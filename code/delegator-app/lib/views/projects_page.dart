@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../services/service_registry.dart';
 import '../models/project.dart';
 import 'project_detail_page.dart';
+import 'create_project_dialog.dart'; // Add this to imports
 
 class ProjectsPage extends StatefulWidget {
   final int? highlightProjectId; // Optional: highlight a specific project
@@ -87,9 +88,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
             icon: const Icon(Icons.add),
             onPressed: () {
               // TODO: Implement add project functionality
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Add project coming soon!')),
-              );
+              _showCreateProjectDialog();
             },
           ),
           PopupMenuButton<String>(
@@ -330,6 +329,23 @@ class _ProjectsPageState extends State<ProjectsPage> {
         },
       ),
     );
+  }
+
+  Future<void> _showCreateProjectDialog() async {
+    final Project? newProject = await showDialog<Project>(
+      context: context,
+      builder: (context) => const CreateProjectDialog(),
+    );
+
+    if (newProject != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content:
+                Text('Project "${newProject.name}" created successfully!')),
+      );
+      // Refresh the projects list
+      _loadProjects();
+    }
   }
 
   Future<void> _loadAllProjects() async {

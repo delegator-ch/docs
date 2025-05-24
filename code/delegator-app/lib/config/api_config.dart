@@ -11,5 +11,5 @@ class ApiConfig {
   static const String tasks = 'tasks/';
   static const String token = 'token/';
   static const String refreshToken = 'token/refresh/';
-  static const String organisations = 'organisations';
+  static const String organisations = 'organisations/';
 }

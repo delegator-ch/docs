@@ -5,38 +5,37 @@ import '../services/service_registry.dart';
 import '../models/project.dart';
 import '../models/task.dart';
 import '../models/chat.dart';
+import 'chat_detail_page.dart';
 
 class ProjectDetailPage extends StatefulWidget {
   final int projectId;
   final String? projectName;
 
-  const ProjectDetailPage({Key? key, required this.projectId, this.projectName})
-      : super(key: key);
+  const ProjectDetailPage({
+    Key? key,
+    required this.projectId,
+    this.projectName,
+  }) : super(key: key);
 
   @override
   _ProjectDetailPageState createState() => _ProjectDetailPageState();
 }
 
-class _ProjectDetailPageState extends State<ProjectDetailPage>
-    with SingleTickerProviderStateMixin {
+class _ProjectDetailPageState extends State<ProjectDetailPage> {
   Project? _project;
   List<Task> _tasks = [];
   List<Chat> _chats = [];
   bool _isLoading = true;
   String? _errorMessage;
 
-  late TabController _tabController;
-
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
     _loadProjectData();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     super.dispose();
   }
 
@@ -80,6 +79,12 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
         actions: [
+          if (_chats.isNotEmpty && !_isLoading)
+            IconButton(
+              icon: const Icon(Icons.chat),
+              onPressed: () => _openProjectChat(),
+              tooltip: 'Open Project Chat',
+            ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadProjectData,
@@ -132,19 +137,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
             ],
           ),
         ],
-        bottom: _isLoading
-            ? null
-            : TabBar(
-                controller: _tabController,
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.white70,
-                indicatorColor: Colors.white,
-                tabs: const [
-                  Tab(text: 'Overview', icon: Icon(Icons.info)),
-                  Tab(text: 'Tasks', icon: Icon(Icons.task)),
-                  Tab(text: 'Chats', icon: Icon(Icons.chat)),
-                ],
-              ),
       ),
       body: _buildBody(),
       floatingActionButton: _isLoading
@@ -176,7 +168,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
             const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Text(_errorMessage!, textAlign: TextAlign.center),
+              child: Text(
+                _errorMessage!,
+                textAlign: TextAlign.center,
+              ),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
@@ -188,13 +183,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
       );
     }
 
-    return TabBarView(
-      controller: _tabController,
-      children: [_buildOverviewTab(), _buildTasksTab(), _buildChatsTab()],
-    );
-  }
-
-  Widget _buildOverviewTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -206,8 +194,89 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
           const SizedBox(height: 20),
           _buildProjectDetails(),
           const SizedBox(height: 20),
+          _buildTasksSection(),
+          const SizedBox(height: 20),
+          _buildChatsSection(),
+          const SizedBox(height: 20),
           _buildRecentActivity(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTasksSection() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.task, color: Colors.blue),
+                const SizedBox(width: 8),
+                Text(
+                  'Tasks (${_tasks.length})',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_tasks.isEmpty)
+              const Text('No tasks yet')
+            else
+              ..._tasks.take(5).map((task) => _buildTaskCard(task)).toList(),
+            if (_tasks.length > 5) ...[
+              const SizedBox(height: 8),
+              Center(
+                child: TextButton(
+                  onPressed: () {
+                    // TODO: Show all tasks
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Show all tasks coming soon!')),
+                    );
+                  },
+                  child: Text('View all ${_tasks.length} tasks'),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChatsSection() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.chat, color: Colors.orange),
+                const SizedBox(width: 8),
+                Text(
+                  'Project Chats (${_chats.length})',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_chats.isEmpty)
+              const Text('No chats yet')
+            else
+              ..._chats.map((chat) => _buildChatCard(chat)).toList(),
+          ],
+        ),
       ),
     );
   }
@@ -236,7 +305,11 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.work, size: 32, color: Colors.white),
+                  child: const Icon(
+                    Icons.work,
+                    size: 32,
+                    color: Colors.white,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -299,6 +372,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
         .where((task) => task.status == 3)
         .length; // Assuming status 3 is completed
     final totalTasks = _tasks.length;
+    final progress = totalTasks > 0 ? completedTasks / totalTasks : 0.0;
 
     return Row(
       children: [
@@ -333,11 +407,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
   }
 
   Widget _buildStatCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
+      String title, String value, IconData icon, Color color) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -374,17 +444,11 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
             ),
             const SizedBox(height: 12),
             _buildDetailRow(
-              'Project ID',
-              _project?.id?.toString() ?? 'Unknown',
-            ),
+                'Project ID', _project?.id?.toString() ?? 'Unknown'),
+            _buildDetailRow('Organization',
+                _project?.organisationId?.toString() ?? 'Unknown'),
             _buildDetailRow(
-              'Organization',
-              _project?.organisationId.toString() ?? 'Unknown',
-            ),
-            _buildDetailRow(
-              'Priority',
-              _getPriorityText(_project?.priority ?? 0),
-            ),
+                'Priority', _getPriorityText(_project?.priority ?? 0)),
             if (_project?.deadline != null)
               _buildDetailRow('Deadline', _formatDate(_project!.deadline!)),
             if (_project?.event != null)
@@ -456,10 +520,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
         child: Icon(Icons.task, size: 16, color: Colors.green[700]),
       ),
       title: Text(task.title, style: const TextStyle(fontSize: 14)),
-      subtitle: Text(
-        'Status: ${task.status}',
-        style: const TextStyle(fontSize: 12),
-      ),
+      subtitle:
+          Text('Status: ${task.status}', style: const TextStyle(fontSize: 12)),
       trailing: Text(
         task.created != null ? _formatTime(task.created!) : '',
         style: TextStyle(fontSize: 10, color: Colors.grey[600]),
@@ -467,44 +529,13 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
     );
   }
 
-  Widget _buildTasksTab() {
-    return RefreshIndicator(
-      onRefresh: _loadProjectData,
-      child: _tasks.isEmpty
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.task, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
-                    'No tasks yet',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Add some tasks to get started!',
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(8),
-              itemCount: _tasks.length,
-              itemBuilder: (context, index) {
-                final task = _tasks[index];
-                return _buildTaskCard(task);
-              },
-            ),
-    );
-  }
-
   Widget _buildTaskCard(Task task) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
       child: ListTile(
+        contentPadding: EdgeInsets.zero,
         leading: CircleAvatar(
+          radius: 16,
           backgroundColor: _getTaskStatusColor(task.status),
           child: Icon(
             _getTaskStatusIcon(task.status),
@@ -512,94 +543,45 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
             size: 16,
           ),
         ),
-        title: Text(task.title),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (task.content != null && task.content!.isNotEmpty)
-              Text(task.content!, maxLines: 1, overflow: TextOverflow.ellipsis),
-            if (task.deadline != null)
-              Text(
-                'Due: ${_formatDate(task.deadline!)}',
-                style: TextStyle(color: Colors.grey[600], fontSize: 12),
-              ),
-          ],
-        ),
-        trailing: PopupMenuButton<String>(
-          onSelected: (value) {
-            // TODO: Handle task actions
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('$value task: ${task.title}')),
-            );
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(value: 'edit', child: Text('Edit')),
-            const PopupMenuItem(
-              value: 'complete',
-              child: Text('Mark Complete'),
-            ),
-            const PopupMenuItem(value: 'delete', child: Text('Delete')),
-          ],
-        ),
+        title: Text(task.title, style: const TextStyle(fontSize: 14)),
+        subtitle: task.deadline != null
+            ? Text('Due: ${_formatDate(task.deadline!)}',
+                style: const TextStyle(fontSize: 12))
+            : null,
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
         onTap: () {
           // TODO: Navigate to task detail
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Open task: ${task.title}')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Open task: ${task.title}')),
+          );
         },
       ),
     );
   }
 
-  Widget _buildChatsTab() {
-    return RefreshIndicator(
-      onRefresh: _loadProjectData,
-      child: _chats.isEmpty
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.chat, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
-                    'No chats yet',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Create a chat to collaborate!',
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(8),
-              itemCount: _chats.length,
-              itemBuilder: (context, index) {
-                final chat = _chats[index];
-                return _buildChatCard(chat);
-              },
-            ),
-    );
-  }
-
   Widget _buildChatCard(Chat chat) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
       child: ListTile(
+        contentPadding: EdgeInsets.zero,
         leading: CircleAvatar(
+          radius: 16,
           backgroundColor: Colors.blue[100],
-          child: Icon(Icons.chat, color: Colors.blue[700]),
+          child: Icon(Icons.chat, color: Colors.blue[700], size: 16),
         ),
-        title: Text(chat.name),
-        subtitle: Text('Type: ${chat.chatType}'),
+        title: Text(chat.name, style: const TextStyle(fontSize: 14)),
+        subtitle: Text('Type: ${chat.chatType}',
+            style: const TextStyle(fontSize: 12)),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
         onTap: () {
-          // TODO: Navigate to chat
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Open chat: ${chat.name}')));
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => ChatDetailPage(
+                chatId: chat.id!,
+                chatName: chat.name,
+              ),
+            ),
+          );
         },
       ),
     );
@@ -641,16 +623,35 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
     );
   }
 
+  void _openProjectChat() {
+    if (_chats.isNotEmpty) {
+      // Open the first project chat (or you could show a dialog to select if multiple chats)
+      final chat = _chats.first;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => ChatDetailPage(
+            chatId: chat.id!,
+            chatName: chat.name,
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No chats available for this project')),
+      );
+    }
+  }
+
   void _editProject() {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Edit project coming soon!')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Edit project coming soon!')),
+    );
   }
 
   void _shareProject() {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Share project coming soon!')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Share project coming soon!')),
+    );
   }
 
   void _archiveProject() {
@@ -660,21 +661,21 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
   }
 
   void _addTask() {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Add task coming soon!')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Add task coming soon!')),
+    );
   }
 
   void _createChat() {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Create chat coming soon!')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Create chat coming soon!')),
+    );
   }
 
   void _addMember() {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Add member coming soon!')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Add member coming soon!')),
+    );
   }
 
   String _getPriorityText(int priority) {
