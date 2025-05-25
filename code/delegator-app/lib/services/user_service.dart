@@ -104,7 +104,7 @@ class UserService implements BaseService<User> {
     }
   }
 
-  /// Get users for a specific project
+  /// Get users for a specific project with their roles and access details
   Future<List<User>> getByProjectId(int projectId) async {
     if (projectId <= 0) {
       throw ArgumentError('Project ID must be a positive integer');

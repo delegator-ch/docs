@@ -107,6 +107,71 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
     }
   }
 
+  Widget _buildUserDropdownItem(User user) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: Colors.blue[100],
+            child: Text(
+              user.username.isNotEmpty ? user.username[0].toUpperCase() : '?',
+              style: TextStyle(
+                color: Colors.blue[700],
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  user.displayName,
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+                if (user.role != null) ...[
+                  Text(
+                    '${user.role!.name} (Level ${user.role!.level})',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+                if (user.accessType != null) ...[
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: user.accessType == 'organization'
+                          ? Colors.blue[50]
+                          : Colors.orange[50],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      user.accessType!.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: user.accessType == 'organization'
+                            ? Colors.blue[700]
+                            : Colors.orange[700],
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -150,7 +215,7 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
               ),
               const SizedBox(height: 16),
 
-              // User Assignment Dropdown
+              // User Assignment Dropdown with enhanced UI
               if (_isLoadingUsers)
                 const Center(child: CircularProgressIndicator())
               else if (_projectUsers.isEmpty)
@@ -172,29 +237,55 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
                   ),
                 )
               else
-                DropdownButtonFormField<User>(
-                  value: _selectedUser,
-                  decoration: const InputDecoration(
-                    labelText: 'Assign to (Optional)',
-                    prefixIcon: Icon(Icons.person),
-                  ),
-                  items: [
-                    const DropdownMenuItem<User>(
-                      value: null,
-                      child: Text('Unassigned'),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Assign to (${_projectUsers.length} members available)',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                    ..._projectUsers.map((user) {
-                      return DropdownMenuItem<User>(
-                        value: user,
-                        child: Text(user.username),
-                      );
-                    }).toList(),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<User>(
+                      value: _selectedUser,
+                      decoration: const InputDecoration(
+                        labelText: 'Select team member',
+                        prefixIcon: Icon(Icons.person),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      isExpanded: true,
+                      items: [
+                        const DropdownMenuItem<User>(
+                          value: null,
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              children: [
+                                Icon(Icons.person_off, color: Colors.grey),
+                                SizedBox(width: 12),
+                                Text('Unassigned'),
+                              ],
+                            ),
+                          ),
+                        ),
+                        ..._projectUsers.map((user) {
+                          return DropdownMenuItem<User>(
+                            value: user,
+                            child: _buildUserDropdownItem(user),
+                          );
+                        }).toList(),
+                      ],
+                      onChanged: (User? newValue) {
+                        setState(() {
+                          _selectedUser = newValue;
+                        });
+                      },
+                    ),
                   ],
-                  onChanged: (User? newValue) {
-                    setState(() {
-                      _selectedUser = newValue;
-                    });
-                  },
                 ),
               const SizedBox(height: 16),
 

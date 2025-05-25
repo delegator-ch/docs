@@ -130,7 +130,7 @@ def get_user_accessible_calendars(user):
     Get all calendars a user has access to through:
     1. Organization membership
     2. User's own calendars (where user is directly assigned)
-    3. Project membership (via UserProject)
+    3. Project membership (via External)
     
     Returns a QuerySet of Calendar objects.
     """
@@ -147,9 +147,9 @@ def get_user_accessible_calendars(user):
     # Get user's directly assigned calendars
     direct_calendars = Calendar.objects.filter(user=user)
     
-    # Get calendars from projects where user is a member
+    # Get calendars from projects where user is a member (via External)
     project_calendars = Calendar.objects.filter(
-        event__project__userproject__user=user
+        event__project__external__user=user
     )
     
     # Combine the queries and apply distinct to remove duplicates
