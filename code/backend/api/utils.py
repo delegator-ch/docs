@@ -1,6 +1,6 @@
 
 
-from .models import UserOrganisation, Project, Chat, UserProject, Calendar, Event
+from .models import UserOrganisation, Project, Chat, External, Calendar, Event
 from rest_framework.exceptions import PermissionDenied
 from django.db.models import Q
 

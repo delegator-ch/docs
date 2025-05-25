@@ -2,7 +2,7 @@ from rest_framework.permissions import BasePermission, SAFE_METHODS
 from rest_framework.exceptions import PermissionDenied
 from rest_framework import permissions
 
-from .models import Calendar, Event, UserProject, UserOrganisation, Project
+from .models import Calendar, Event, External, UserOrganisation, Project
 from .utils import (
     get_user_accessible_calendars,
     get_user_accessible_chats,
@@ -140,19 +140,15 @@ class IsProjectMember(BasePermission):
         if user.is_staff:
             return True
 
-        # For objects with an event (like Setlist, Timetable)
         if hasattr(obj, 'event'):
-            # If event is None, skip this check
             if obj.event:
-                # Check direct project access
                 related_projects = Project.objects.filter(event=obj.event)
-                if UserProject.objects.filter(
+                if External.objects.filter(
                     user=user,
                     project__in=related_projects
                 ).exists():
                     return True
                     
-                # Check organization access via event's calendar
                 if obj.event.calendar and hasattr(obj.event.calendar, 'organisation'):
                     org = obj.event.calendar.organisation
                     return UserOrganisation.objects.filter(
@@ -160,16 +156,13 @@ class IsProjectMember(BasePermission):
                         organisation=org
                     ).exists()
         
-        # For objects with direct project relationship (like Task)
         if hasattr(obj, 'project'):
-            # Check direct project access
-            if UserProject.objects.filter(
+            if External.objects.filter(
                 user=user,
                 project=obj.project
             ).exists():
                 return True
                 
-            # Check organization access via project
             if hasattr(obj.project, 'organisation'):
                 return UserOrganisation.objects.filter(
                     user=user,
@@ -183,11 +176,10 @@ class IsProjectMember(BasePermission):
             return True
 
         user = request.user
-
         project_id = request.data.get('project')
         if project_id:
             try:
-                if UserProject.objects.filter(user=user, project_id=project_id).exists():
+                if External.objects.filter(user=user, project_id=project_id).exists():
                     return True
                 project = Project.objects.get(id=project_id)
                 if project.organisation and UserOrganisation.objects.filter(user=user, organisation=project.organisation).exists():
@@ -200,7 +192,7 @@ class IsProjectMember(BasePermission):
             try:
                 event = Event.objects.get(id=event_id)
                 projects = Project.objects.filter(event=event)
-                if UserProject.objects.filter(user=user, project__in=projects).exists():
+                if External.objects.filter(user=user, project__in=projects).exists():
                     return True
                 if event.calendar and hasattr(event.calendar, 'organisation'):
                     return UserOrganisation.objects.filter(user=user, organisation=event.calendar.organisation).exists()
@@ -209,23 +201,16 @@ class IsProjectMember(BasePermission):
 
         return False
 
-
 class HasProjectAccess(BasePermission):
-    """
-    Permission to check if user has access to a project.
-    """
     def has_object_permission(self, request, view, obj):
         user = request.user
         
-        # Staff can access all projects
         if user.is_staff:
             return True
         
-        # Check if project belongs to user's organization
         if obj.event and obj.event.calendar and obj.event.calendar.organisation:
             organisation = obj.event.calendar.organisation
             if UserOrganisation.objects.filter(user=user, organisation=organisation).exists():
                 return True
         
-        # If not in the organization, check direct project access
-        return UserProject.objects.filter(user=user, project=obj).exists()
+        return External.objects.filter(user=user, project=obj).exists()

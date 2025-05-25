@@ -250,7 +250,7 @@ class Chat(models.Model):
             return direct_access.first().view
             
         # Project-based access
-        if self.project and UserProject.objects.filter(user=user, project=self.project).exists():
+        if self.project and External.objects.filter(user=user, project=self.project).exists():
             return True
             
         # Organisation-based access with role level check
@@ -270,7 +270,7 @@ class Project(models.Model):
 
     users = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
-        through='UserProject',
+        through='external',
         related_name='projects'
     )    
 
@@ -408,7 +408,7 @@ class Recording(models.Model):
 
 # Add this to your models.py file
 
-class UserProject(models.Model):
+class External(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     role = models.ForeignKey(Role, on_delete=models.CASCADE)
