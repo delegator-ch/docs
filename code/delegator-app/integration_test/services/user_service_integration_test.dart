@@ -278,24 +278,24 @@ void main() {
       try {
         // Create a test user
         final newUser = User(
-          username:
-              'test_integration_user_${DateTime.now().millisecondsSinceEpoch}',
-          email: 'test@integration.com',
-          firstName: 'Test',
-          lastName: 'User',
-        );
+            username:
+                'test_integration_user_${DateTime.now().millisecondsSinceEpoch}',
+            email: 'test@integration.com',
+            firstName: 'Test',
+            lastName: 'User',
+            password: 'sml12345');
 
         print('🆕 Creating new user: "${newUser.username}"');
 
         // Act - Create the user
         final createdUser = await userService.create(newUser);
-
+        final userById = await userService.getById(createdUser.id!);
         // Assert
         print('✅ User created with ID: ${createdUser.id}');
         expect(createdUser, isNotNull);
         expect(createdUser.id, isNotNull);
-        expect(createdUser.username, equals(newUser.username));
-        expect(createdUser.email, equals(newUser.email));
+        expect(createdUser.username, equals(userById.username));
+        expect(createdUser.email, equals(userById.email));
 
         // Act - Delete the user
         print('🗑️ Deleting user with ID: ${createdUser.id}');

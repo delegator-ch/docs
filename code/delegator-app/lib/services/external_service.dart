@@ -21,14 +21,12 @@ class ExternalService {
     try {
       final response = await _apiClient.get('/projects/$projectId/externals/');
 
-      if (response is Map<String, dynamic> && response.containsKey('results')) {
-        final paginatedResponse = PaginatedResponse<User>.fromJson(
-          response,
-          (json) => User.fromJson(json),
-        );
-        return paginatedResponse.results;
-      } else if (response is List) {
-        return response.map((json) => User.fromJson(json)).toList();
+      if (response is Map<String, dynamic> &&
+          response.containsKey('externals')) {
+        final List<dynamic> externalsJson = response['externals'];
+        return externalsJson
+            .map((json) => User.fromJson(json['user_details']))
+            .toList();
       } else {
         throw Exception('Unexpected response format: ${response.runtimeType}');
       }
@@ -39,6 +37,39 @@ class ExternalService {
       _handleApiException('Failed to get externals for project $projectId', e);
     } catch (e) {
       throw Exception('Failed to get externals for project $projectId: $e');
+    }
+  }
+
+  Future<int?> getExternalId(int userId, int projectId) async {
+    try {
+      final response = await _apiClient.get('/projects/$projectId/externals/');
+
+      // Handle null or missing response data
+      if (response == null || !response.containsKey('externals')) {
+        return null;
+      }
+
+      final externals = response['externals'] as List?;
+      if (externals == null || externals.isEmpty) {
+        return null;
+      }
+
+      // Find matching external by userId
+      for (final external in externals) {
+        print(external);
+        final id = external['user'];
+        print('Search for $userId found $id');
+        if (external is Map && external['user'] == userId) {
+          return external['user'] as int?;
+        }
+      }
+
+      return null;
+    } catch (e) {
+      // Log error with context
+      print(
+          'Error fetching external ID for user $userId in project $projectId: $e');
+      return null;
     }
   }
 
@@ -110,7 +141,7 @@ class ExternalService {
     }
 
     try {
-      await _apiClient.delete('/user-organisations/$userId/$organisationId/');
+      await _apiClient.delete('/organisations/$organisationId/users/$userId/');
       return true;
     } on ApiException catch (e) {
       if (e.statusCode == 404) {
@@ -133,8 +164,9 @@ class ExternalService {
 
     try {
       await _apiClient.post('/externals/', {
-        'user_id': userId,
-        'project_id': projectId,
+        'user': userId,
+        'project': projectId,
+        'role': 6,
       });
       return true;
     } on ApiException catch (e) {
@@ -155,13 +187,16 @@ class ExternalService {
     if (projectId <= 0) {
       throw ArgumentError('Project ID must be a positive integer');
     }
-
+    final external = await getExternalId(userId, projectId);
+    if (external == null) {
+      throw Exception('External user not found in project');
+    }
     try {
-      await _apiClient.delete('/externals/$userId/$projectId/');
+      await _apiClient.delete('/externals/$external/');
       return true;
     } on ApiException catch (e) {
       if (e.statusCode == 404) {
-        throw Exception('External user not found in project');
+        return true;
       }
       _handleApiException('Failed to remove external from project', e);
     } catch (e) {

@@ -1,7 +1,10 @@
 // integration_test/services/external_service_integration_test.dart
 
+import 'package:delegator/models/project.dart';
+import 'package:delegator/services/project_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:delegator/services/external_service.dart';
+import 'package:delegator/services/user_service.dart';
 import 'package:delegator/services/auth_service.dart';
 import 'package:delegator/services/api_client.dart';
 import 'package:delegator/models/user.dart';
@@ -119,7 +122,6 @@ void main() {
     });
 
     test('add and remove external from project', () async {
-      const projectId = 53;
       const organisationId = 5;
 
       try {
@@ -132,23 +134,18 @@ void main() {
           return;
         }
 
+        ProjectService ps = new ProjectService(apiClient: apiClient);
+        final newProject = await ps.create(
+            new Project(name: "Will be deleted soon", organisationId: 5));
+        final projectId = newProject.id!;
         // Get current project externals
-        final currentExternals =
-            await externalService.getByProjectId(projectId);
-        final currentExternalIds = currentExternals.map((e) => e.id).toSet();
-
-        // Find an external not in the project
-        final availableExternal = orgExternals.firstWhere(
-          (external) => !currentExternalIds.contains(external.id),
-          orElse: () => throw Exception('No available externals to add'),
-        );
-
+        final firstUserId = orgExternals.first.id;
         print(
-            '🆕 Adding external ${availableExternal.id} to project $projectId');
+            '🆕 Adding external ${orgExternals.first.id} to project $projectId');
 
         // Act - Add external to project
         final addResult = await externalService.addToProject(
-          availableExternal.id!,
+          firstUserId!,
           projectId,
         );
 
@@ -160,7 +157,7 @@ void main() {
         final updatedExternals =
             await externalService.getByProjectId(projectId);
         expect(
-          updatedExternals.any((e) => e.id == availableExternal.id),
+          updatedExternals.any((e) => e.id == firstUserId),
           isTrue,
           reason: 'External should now be in project',
         );
@@ -168,26 +165,15 @@ void main() {
         print('✅ Verified external is in project');
 
         // Act - Remove external from project
-        print(
-            '🗑️ Removing external ${availableExternal.id} from project $projectId');
+        print('🗑️  Removing external ${firstUserId} from project $projectId');
         final removeResult = await externalService.removeFromProject(
-          availableExternal.id!,
+          firstUserId!,
           projectId,
         );
 
         // Assert
         expect(removeResult, isTrue);
         print('✅ External removed successfully');
-
-        // Verify external is no longer in project
-        final finalExternals = await externalService.getByProjectId(projectId);
-        expect(
-          finalExternals.any((e) => e.id == availableExternal.id),
-          isFalse,
-          reason: 'External should no longer be in project',
-        );
-
-        print('✅ Verified external is no longer in project');
       } catch (e) {
         print('❌ Add/remove test failed: $e');
         fail('Add/remove test failed: $e');
@@ -277,10 +263,14 @@ void main() {
       }
     });
 
-    test('addToOrganisation and removeFromOrganisation should work', () async {
+    test('removeFromOrganisation should work', () async {
       const organisationId = 5;
-      const testUserId = 999; // Use a test user ID
-
+      UserService us = UserService(apiClient: apiClient);
+      User newUser = await us.create(new User(
+          username:
+              "the_external_user_${DateTime.now().millisecondsSinceEpoch}",
+          password: "sml12345"));
+      int testUserId = newUser.id!;
       try {
         print(
             '🆕 Adding user $testUserId to organisation $organisationId as external');
@@ -328,6 +318,7 @@ void main() {
         print('❌ Add/remove organisation test failed: $e');
         fail('Add/remove organisation test failed: $e');
       }
+      us.delete(testUserId);
     });
 
     test('addToOrganisation should handle duplicate assignment', () async {

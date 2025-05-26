@@ -493,7 +493,8 @@ def get_users_by_project(request, project_id):
 
     if hasattr(project, 'organisation') and project.organisation:
         org_users = UserOrganisation.objects.filter(
-            organisation=project.organisation
+            organisation=project.organisation,
+            role_id__in=[1, 2, 3]
         ).select_related('user', 'role')
         
         for uo in org_users:
@@ -633,3 +634,66 @@ def get_all_users_by_organisation(request, org_id):
         'users': serializer.data,
         'total_users': all_users.count()
     })
+
+# Add this to views.py
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def remove_user_from_organisation(request, org_id, user_id):
+    """
+    Remove a user from an organisation. Only admins can do this.
+    """
+    try:
+        organisation = Organisation.objects.get(id=org_id)
+        target_user = User.objects.get(id=user_id)
+    except (Organisation.DoesNotExist, User.DoesNotExist):
+        return Response(
+            {"detail": "Organisation or user not found."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    user = request.user
+    if not user.is_staff:
+        # Check if user is admin in this org (role_id=1)
+        is_admin = UserOrganisation.objects.filter(
+            user=user, 
+            organisation=organisation,
+            role_id=1  # Assuming role_id=1 is admin
+        ).exists()
+        
+        if not is_admin:
+            return Response(
+                {"detail": "Only admins can remove users from this organisation."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+    
+    # Prevent removing yourself if you're the only admin
+    if target_user == user:
+        admin_count = UserOrganisation.objects.filter(
+            organisation=organisation,
+            role_id=1
+        ).count()
+        
+        if admin_count == 1:
+            return Response(
+                {"detail": "Cannot remove yourself - you're the only admin."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    
+    # Remove the user from organisation
+    try:
+        user_org = UserOrganisation.objects.get(
+            user=target_user,
+            organisation=organisation
+        )
+        user_org.delete()
+        
+        return Response(
+            {"detail": f"User {target_user.username} removed from {organisation.name}."},
+            status=status.HTTP_200_OK
+        )
+    except UserOrganisation.DoesNotExist:
+        return Response(
+            {"detail": "User is not a member of this organisation."},
+            status=status.HTTP_404_NOT_FOUND
+        )

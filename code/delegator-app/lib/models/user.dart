@@ -11,19 +11,20 @@ class User {
   final UserRole? role;
   final DateTime? joinedProject;
   final String? accessType;
+  final String? password;
 
-  User({
-    this.id,
-    required this.username,
-    this.email,
-    this.firstName,
-    this.lastName,
-    this.isPremium = false,
-    this.created,
-    this.role,
-    this.joinedProject,
-    this.accessType,
-  });
+  User(
+      {this.id,
+      required this.username,
+      this.email,
+      this.firstName,
+      this.lastName,
+      this.isPremium = false,
+      this.created,
+      this.role,
+      this.joinedProject,
+      this.accessType,
+      this.password});
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
@@ -51,6 +52,7 @@ class User {
     if (lastName != null) data['last_name'] = lastName;
     data['is_premium'] = isPremium;
     if (accessType != null) data['access_type'] = accessType;
+    if (password != null) data['password'] = password;
     return data;
   }
 
