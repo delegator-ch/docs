@@ -90,6 +90,7 @@ class RoleViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = RoleSerializer
     permission_classes = [IsAuthenticated] 
  
+# This only shows organizations where YOU are a member. It doesn't show other users in your organizations. 
 class UserOrganisationViewSet(viewsets.ModelViewSet):
     queryset = UserOrganisation.objects.all()
     serializer_class = UserOrganisationSerializer
@@ -518,4 +519,117 @@ def get_users_by_project(request, project_id):
         'project_name': project.name,
         'users': users_data,
         'total_users': len(users_data)
+    })
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_externals_by_project(request, project_id):
+    try:
+        project = Project.objects.get(id=project_id)
+    except Project.DoesNotExist:
+        return Response(
+            {"detail": "Project not found."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    user = request.user
+    if not user.is_staff:
+        has_project_access = External.objects.filter(user=user, project=project).exists()
+        has_org_access = UserOrganisation.objects.filter(
+            user=user, 
+            organisation=project.organisation
+        ).exists() if hasattr(project, 'organisation') else False
+        
+        if not (has_project_access or has_org_access):
+            return Response(
+                {"detail": "You don't have access to this project."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+    
+    externals = External.objects.filter(project=project).select_related('user', 'role')
+    serializer = ExternalSerializer(externals, many=True)
+    
+    return Response({
+        'project_id': project.id,
+        'project_name': project.name,
+        'externals': serializer.data,
+        'total_externals': externals.count()
+    })
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_externals_by_organisation(request, org_id):
+    try:
+        organisation = Organisation.objects.get(id=org_id)
+    except Organisation.DoesNotExist:
+        return Response(
+            {"detail": "Organisation not found."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    user = request.user
+    if not user.is_staff:
+        has_org_access = UserOrganisation.objects.filter(
+            user=user, 
+            organisation=organisation
+        ).exists()
+        
+        if not has_org_access:
+            return Response(
+                {"detail": "You don't have access to this organisation."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+    
+    # Get all users with role 6 (external) in this organisation
+    external_users = UserOrganisation.objects.filter(
+        organisation=organisation,
+        role_id=6
+    ).select_related('user', 'role')
+    
+    serializer = UserOrganisationSerializer(external_users, many=True)
+    
+    return Response({
+        'organisation_id': organisation.id,
+        'organisation_name': organisation.name,
+        'external_users': serializer.data,
+        'total_external_users': external_users.count()
+    })
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_all_users_by_organisation(request, org_id):
+    try:
+        organisation = Organisation.objects.get(id=org_id)
+    except Organisation.DoesNotExist:
+        return Response(
+            {"detail": "Organisation not found."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    user = request.user
+    if not user.is_staff:
+        # Check if user is admin in this org (assuming role_id=1 is admin)
+        is_admin = UserOrganisation.objects.filter(
+            user=user, 
+            organisation=organisation,
+            role_id=1
+        ).exists()
+        
+        if not is_admin:
+            return Response(
+                {"detail": "Only admins can view all users in this organisation."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+    
+    # Get all users in this organisation
+    all_users = UserOrganisation.objects.filter(
+        organisation=organisation
+    ).select_related('user', 'role')
+    
+    serializer = UserOrganisationSerializer(all_users, many=True)
+    
+    return Response({
+        'organisation_id': organisation.id,
+        'organisation_name': organisation.name,
+        'users': serializer.data,
+        'total_users': all_users.count()
     })

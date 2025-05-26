@@ -1,12 +1,14 @@
-// lib/views/project_detail_page.dart
+// lib/views/project_detail_page.dart (Updated with user management)
 
 import 'package:flutter/material.dart';
 import '../services/service_registry.dart';
 import '../models/project.dart';
 import '../models/task.dart';
 import '../models/chat.dart';
+import '../models/user.dart';
 import 'chat_detail_page.dart';
 import 'create_task_dialog.dart';
+import 'manage_project_users_dialog.dart';
 
 class ProjectDetailPage extends StatefulWidget {
   final int projectId;
@@ -27,7 +29,8 @@ class ProjectDetailPage extends StatefulWidget {
 class _ProjectDetailPageState extends State<ProjectDetailPage> {
   Project? _project;
   List<Task> _tasks = [];
-  Chat? _chat; // Changed from _chats to _chat
+  Chat? _chat;
+  List<User> _projectMembers = [];
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -53,17 +56,22 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       final futures = await Future.wait([
         ServiceRegistry().projectService.getById(widget.projectId),
         ServiceRegistry().taskService.getByProjectId(widget.projectId),
-        ServiceRegistry().chatService.getById(widget.chatId), // Fixed
+        ServiceRegistry().chatService.getById(widget.chatId),
+        ServiceRegistry()
+            .userService
+            .getByProjectId(widget.projectId), // Load project members
       ]);
 
       final project = futures[0] as Project;
       final tasks = futures[1] as List<Task>;
-      final chat = futures[2] as Chat; // Added this line
+      final chat = futures[2] as Chat;
+      final members = futures[3] as List<User>;
 
       setState(() {
         _project = project;
         _tasks = tasks;
-        _chat = chat; // Fixed assignment
+        _chat = chat;
+        _projectMembers = members;
         _isLoading = false;
       });
     } catch (e) {
@@ -82,7 +90,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
         actions: [
-          if (_chat != null && !_isLoading) // Fixed condition
+          if (_chat != null && !_isLoading)
             IconButton(
               icon: const Icon(Icons.chat),
               onPressed: () => _openProjectChat(),
@@ -97,6 +105,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               switch (value) {
                 case 'edit':
                   _editProject();
+                  break;
+                case 'manage_users':
+                  _manageUsers();
                   break;
                 case 'share':
                   _shareProject();
@@ -114,6 +125,16 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                     Icon(Icons.edit, color: Colors.grey),
                     SizedBox(width: 12),
                     Text('Edit Project'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'manage_users',
+                child: Row(
+                  children: [
+                    Icon(Icons.people, color: Colors.blue),
+                    SizedBox(width: 12),
+                    Text('Manage Members'),
                   ],
                 ),
               ),
@@ -195,6 +216,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           const SizedBox(height: 20),
           _buildProjectStats(),
           const SizedBox(height: 20),
+          _buildMembersSection(), // New members section
+          const SizedBox(height: 20),
           _buildProjectDetails(),
           const SizedBox(height: 20),
           _buildTasksSection(),
@@ -209,7 +232,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     );
   }
 
-  Widget _buildTasksSection() {
+  Widget _buildMembersSection() {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -218,34 +241,75 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           children: [
             Row(
               children: [
-                Icon(Icons.task, color: Colors.blue),
+                Icon(Icons.people, color: Colors.blue),
                 const SizedBox(width: 8),
-                Text(
-                  'Tasks (${_tasks.length})',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Text(
+                    'Project Members (${_projectMembers.length})',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: _manageUsers,
+                  icon: const Icon(Icons.manage_accounts, size: 16),
+                  label: const Text('Manage'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            if (_tasks.isEmpty)
-              const Text('No tasks yet')
+            if (_projectMembers.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: Column(
+                  children: [
+                    Icon(Icons.person_off, color: Colors.grey[400], size: 32),
+                    const SizedBox(height: 8),
+                    Text(
+                      'No members assigned',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Add members to collaborate on this project',
+                      style: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              )
             else
-              ..._tasks.take(5).map((task) => _buildTaskCard(task)).toList(),
-            if (_tasks.length > 5) ...[
+              Column(
+                children: _projectMembers
+                    .take(5) // Show first 5 members
+                    .map((member) => _buildMemberTile(member))
+                    .toList(),
+              ),
+            if (_projectMembers.length > 5) ...[
               const SizedBox(height: 8),
               Center(
                 child: TextButton(
-                  onPressed: () {
-                    // TODO: Show all tasks
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Show all tasks coming soon!')),
-                    );
-                  },
-                  child: Text('View all ${_tasks.length} tasks'),
+                  onPressed: _manageUsers,
+                  child: Text('View all ${_projectMembers.length} members'),
                 ),
               ),
             ],
@@ -255,34 +319,120 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     );
   }
 
-  Widget _buildChatsSection() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+  Widget _buildMemberTile(User member) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: CircleAvatar(
+          backgroundColor: Colors.blue[100],
+          child: Text(
+            member.username.isNotEmpty ? member.username[0].toUpperCase() : '?',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.blue[700],
+            ),
+          ),
+        ),
+        title: Text(
+          member.displayName,
+          style: const TextStyle(fontWeight: FontWeight.w500),
+        ),
+        subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(Icons.chat, color: Colors.orange),
-                const SizedBox(width: 8),
-                Text(
-                  'Project Chat', // Updated title
-                  style: const TextStyle(
-                    fontSize: 18,
+            if (member.email != null)
+              Text(
+                member.email!,
+                style: const TextStyle(fontSize: 12),
+              ),
+            if (member.role != null)
+              Text(
+                '${member.role!.name} (Level ${member.role!.level})',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (member.accessType != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: member.accessType == 'organization'
+                      ? Colors.blue[50]
+                      : Colors.orange[50],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  member.accessType!.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: member.accessType == 'organization'
+                        ? Colors.blue[700]
+                        : Colors.orange[700],
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            if (_chat == null) // Fixed condition
-              const Text('No chat available')
-            else
-              _buildChatCard(_chat!), // Fixed to use single chat
+              ),
+            const SizedBox(width: 8),
+            const Icon(Icons.arrow_forward_ios, size: 16),
           ],
         ),
+        onTap: () => _showMemberDetails(member),
       ),
+    );
+  }
+
+  Widget _buildProjectStats() {
+    final completedTasks = _tasks
+        .where((task) => task.status == 3)
+        .length; // Assuming status 3 is completed
+    final totalTasks = _tasks.length;
+    final progress = totalTasks > 0 ? completedTasks / totalTasks : 0.0;
+
+    return Row(
+      children: [
+        Expanded(
+          child: _buildStatCard(
+            'Total Tasks',
+            totalTasks.toString(),
+            Icons.task,
+            Colors.blue,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildStatCard(
+            'Completed',
+            completedTasks.toString(),
+            Icons.check_circle,
+            Colors.green,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildStatCard(
+            'Members',
+            _projectMembers.length.toString(),
+            Icons.people,
+            Colors.purple,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildStatCard(
+            'Chat',
+            _chat != null ? '1' : '0',
+            Icons.chat,
+            Colors.orange,
+          ),
+        ),
+      ],
     );
   }
 
@@ -372,45 +522,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     );
   }
 
-  Widget _buildProjectStats() {
-    final completedTasks = _tasks
-        .where((task) => task.status == 3)
-        .length; // Assuming status 3 is completed
-    final totalTasks = _tasks.length;
-    final progress = totalTasks > 0 ? completedTasks / totalTasks : 0.0;
-
-    return Row(
-      children: [
-        Expanded(
-          child: _buildStatCard(
-            'Total Tasks',
-            totalTasks.toString(),
-            Icons.task,
-            Colors.blue,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            'Completed',
-            completedTasks.toString(),
-            Icons.check_circle,
-            Colors.green,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            'Chat',
-            _chat != null ? '1' : '0', // Fixed for single chat
-            Icons.chat,
-            Colors.orange,
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildStatCard(
       String title, String value, IconData icon, Color color) {
     return Card(
@@ -492,6 +603,83 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTasksSection() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.task, color: Colors.blue),
+                const SizedBox(width: 8),
+                Text(
+                  'Tasks (${_tasks.length})',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_tasks.isEmpty)
+              const Text('No tasks yet')
+            else
+              ..._tasks.take(5).map((task) => _buildTaskCard(task)).toList(),
+            if (_tasks.length > 5) ...[
+              const SizedBox(height: 8),
+              Center(
+                child: TextButton(
+                  onPressed: () {
+                    // TODO: Show all tasks
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Show all tasks coming soon!')),
+                    );
+                  },
+                  child: Text('View all ${_tasks.length} tasks'),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChatsSection() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.chat, color: Colors.orange),
+                const SizedBox(width: 8),
+                Text(
+                  'Project Chat',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_chat == null)
+              const Text('No chat available')
+            else
+              _buildChatCard(_chat!),
+          ],
+        ),
       ),
     );
   }
@@ -685,34 +873,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     }
   }
 
-  void _showAddOptions() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.task, color: Colors.blue),
-              title: const Text('Add Task'),
-              onTap: () {
-                Navigator.pop(context);
-                _addTask();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.person_add, color: Colors.orange),
-              title: const Text('Add Member'),
-              onTap: () {
-                Navigator.pop(context);
-                _addMember();
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _openProjectChat() {
     // Use widget.chatId directly since it's passed from the constructor
     Navigator.of(context).push(
@@ -818,10 +978,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     }
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
-  }
-
   String _formatTime(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
@@ -833,5 +989,90 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     } else {
       return '${difference.inMinutes}m ago';
     }
+  }
+
+  void _showAddOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.task, color: Colors.blue),
+              title: const Text('Add Task'),
+              onTap: () {
+                Navigator.pop(context);
+                _addTask();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_add, color: Colors.orange),
+              title: const Text('Add Member'),
+              onTap: () {
+                Navigator.pop(context);
+                _manageUsers();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _manageUsers() async {
+    final bool? wasChanged = await showDialog<bool>(
+      context: context,
+      builder: (context) => ManageProjectUsersDialog(
+        projectId: widget.projectId,
+        currentMembers: _projectMembers,
+      ),
+    );
+
+    if (wasChanged == true) {
+      // Reload project data to refresh members list
+      _loadProjectData();
+    }
+  }
+
+  void _showMemberDetails(User member) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(member.displayName),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (member.email != null) ...[
+              Text('Email: ${member.email}'),
+              const SizedBox(height: 8),
+            ],
+            if (member.role != null) ...[
+              Text('Role: ${member.role!.name}'),
+              Text('Level: ${member.role!.level}'),
+              const SizedBox(height: 8),
+            ],
+            if (member.accessType != null) ...[
+              Text('Access Type: ${member.accessType}'),
+              const SizedBox(height: 8),
+            ],
+            if (member.joinedProject != null)
+              Text('Joined: ${_formatDate(member.joinedProject!)}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ... (keep all other existing methods unchanged)
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
   }
 }

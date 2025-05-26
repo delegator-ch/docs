@@ -1,8 +1,9 @@
-// lib/services/service_registry.dart (Updated)
+// lib/services/service_registry.dart (Updated with ExternalService)
 
 import 'package:delegator/services/chat_service.dart';
 import 'package:delegator/services/message_service.dart';
 import 'package:delegator/services/organisation_service.dart';
+import 'package:delegator/services/external_service.dart';
 
 import 'api_client.dart';
 import 'auth_service.dart';
@@ -33,6 +34,7 @@ class ServiceRegistry {
   late final ChatService _chatService;
   late final OrganisationService _organisationService;
   late final UserService _userService;
+  late final ExternalService _externalService;
 
   // Initialization flag
   bool _isInitialized = false;
@@ -55,6 +57,7 @@ class ServiceRegistry {
     _chatService = ChatService(apiClient: _apiClient);
     _organisationService = OrganisationService(apiClient: _apiClient);
     _userService = UserService(apiClient: _apiClient);
+    _externalService = ExternalService(apiClient: _apiClient);
 
     _isInitialized = true;
     print("✅ ServiceRegistry initialized successfully");
@@ -102,15 +105,22 @@ class ServiceRegistry {
     return _messageService;
   }
 
+  /// Get the organisation service
   OrganisationService get organisationService {
     _checkInitialization();
     return _organisationService;
   }
 
-  // Add getter
+  /// Get the user service
   UserService get userService {
     _checkInitialization();
     return _userService;
+  }
+
+  /// Get the external service
+  ExternalService get externalService {
+    _checkInitialization();
+    return _externalService;
   }
 
   /// Check if user is currently logged in
