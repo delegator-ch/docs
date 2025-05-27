@@ -1,4 +1,4 @@
-// lib/views/home_page.dart
+// lib/views/home_page.dart (Updated with task edit navigation)
 
 import 'package:flutter/material.dart';
 import '../services/service_registry.dart';
@@ -7,6 +7,7 @@ import '../models/task.dart';
 import '../models/event.dart';
 import 'project_detail_page.dart';
 import 'projects_page.dart';
+import 'task_detail_page.dart'; // Add this import
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -15,18 +16,33 @@ class HomePage extends StatefulWidget {
   _HomePageState createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   bool _isLoading = true;
   String? _errorMessage;
 
   List<Project> _activeProjects = [];
   List<Task> _upcomingTasks = [];
   List<Event> _todayEvents = [];
+  int? _currentUserId;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadDashboardData();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadDashboardData();
+    }
   }
 
   Future<void> _loadDashboardData() async {
@@ -36,6 +52,10 @@ class _HomePageState extends State<HomePage> {
     });
 
     try {
+      // Get current user first
+      final currentUser = await ServiceRegistry().authService.getCurrentUser();
+      _currentUserId = currentUser?.id;
+
       // Load data in parallel - get only active projects (status 2)
       final futures = await Future.wait([
         ServiceRegistry().projectService.getByStatus(2), // Only active projects
@@ -44,12 +64,24 @@ class _HomePageState extends State<HomePage> {
       ]);
 
       final projects = futures[0] as List<Project>;
-      final tasks = futures[1] as List<Task>;
+      final allTasks = futures[1] as List<Task>;
       final events = futures[2] as List<Event>;
+
+      // Filter tasks: assigned to me OR unassigned AND status 1 or 2 AND from active projects
+      final filteredTasks = allTasks.where((task) {
+        final isAssignedToMeOrUnassigned =
+            task.user == _currentUserId || task.user == null;
+        final isBacklogOrInProgress = task.status == 1 || task.status == 2;
+        final isFromActiveProject =
+            projects.any((project) => project.id == task.project);
+        return isAssignedToMeOrUnassigned &&
+            isBacklogOrInProgress &&
+            isFromActiveProject;
+      }).toList();
 
       setState(() {
         _activeProjects = projects.take(5).toList();
-        _upcomingTasks = tasks.take(5).toList();
+        _upcomingTasks = filteredTasks.take(5).toList();
         _todayEvents = events.where((event) {
           final today = DateTime.now();
           return event.start.day == today.day &&
@@ -198,7 +230,7 @@ class _HomePageState extends State<HomePage> {
               );
             },
             child: _buildStatCard(
-              'Active Projects',
+              'Projects',
               _activeProjects.length.toString(),
               Icons.work,
               Colors.green,
@@ -337,7 +369,7 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Active Projects (Status 2)',
+                    'Projects',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -430,30 +462,6 @@ class _HomePageState extends State<HomePage> {
       title: Text(project.name ?? 'Untitled Project'),
       subtitle: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.green[50],
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.green[200]!),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.play_arrow, size: 12, color: Colors.green[700]),
-                const SizedBox(width: 2),
-                Text(
-                  'ACTIVE',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.green[700],
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
           Text('Priority: ${_getPriorityText(project.priority)}'),
         ],
       ),
@@ -524,13 +532,31 @@ class _HomePageState extends State<HomePage> {
       subtitle: task.deadline != null
           ? Text('Due: ${_formatDate(task.deadline!)}')
           : null,
-      trailing: Icon(Icons.arrow_forward_ios, size: 16),
-      onTap: () {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Open task: ${task.title}')));
-      },
+      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+      onTap: () => _openTaskEdit(task),
     );
+  }
+
+  Future<void> _openTaskEdit(Task task) async {
+    if (task.id != null) {
+      final result = await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => TaskDetailPage(
+            taskId: task.id!,
+            taskTitle: task.title,
+          ),
+        ),
+      );
+
+      // If task was deleted or modified, refresh the dashboard
+      if (result == true) {
+        _loadDashboardData();
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Task ID not available')),
+      );
+    }
   }
 
   String _getPriorityText(int priority) {

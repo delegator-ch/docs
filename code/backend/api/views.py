@@ -369,12 +369,19 @@ class TaskViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        if user.is_staff:
+            return Task.objects.all()
+            
+        # Return tasks that the user can access
         return Task.objects.filter(
-            Q(user=user) | Q(project__external__user=user) | Q(user__is_staff=True)
+            Q(user=user) |  # User's own tasks
+            Q(project__external__user=user) |  # Tasks in projects user is member of
+            Q(project__organisation__userorganisation__user=user)  # Tasks in org projects
         ).distinct()
 
     def perform_create(self, serializer):
-        check_project_access(self.request.user, serializer.validated_data.get('project'))
+        # The permission check is already done in has_permission
+        # Just save with the current user
         serializer.save(user=self.request.user)
 
 class RecordingViewSet(viewsets.ModelViewSet):

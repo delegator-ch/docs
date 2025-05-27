@@ -1,4 +1,4 @@
-// lib/views/project_detail_page.dart (Updated with user management)
+// lib/views/project_detail_page.dart (Updated with task edit navigation)
 
 import 'package:flutter/material.dart';
 import '../services/service_registry.dart';
@@ -9,6 +9,7 @@ import '../models/user.dart';
 import 'chat_detail_page.dart';
 import 'create_task_dialog.dart';
 import 'manage_project_users_dialog.dart';
+import 'task_detail_page.dart'; // Add this import
 
 class ProjectDetailPage extends StatefulWidget {
   final int projectId;
@@ -747,14 +748,31 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                 style: const TextStyle(fontSize: 12))
             : null,
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-        onTap: () {
-          // TODO: Navigate to task detail
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Open task: ${task.title}')),
-          );
-        },
+        onTap: () => _openTaskEdit(task),
       ),
     );
+  }
+
+  Future<void> _openTaskEdit(Task task) async {
+    if (task.id != null) {
+      final result = await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => TaskDetailPage(
+            taskId: task.id!,
+            taskTitle: task.title,
+          ),
+        ),
+      );
+
+      // If task was deleted or modified, refresh the project data
+      if (result == true) {
+        _loadProjectData();
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Task ID not available')),
+      );
+    }
   }
 
   Widget _buildChatCard(Chat chat) {
@@ -1069,8 +1087,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       ),
     );
   }
-
-  // ... (keep all other existing methods unchanged)
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';

@@ -135,69 +135,86 @@ class IsPartOfOrganisationAndStaff(BasePermission):
         return True
 
 class IsProjectMember(BasePermission):
+    def has_permission(self, request, view):
+        """Check permission for create operations (POST)"""
+        # Allow GET requests to pass through to has_object_permission
+        if request.method in SAFE_METHODS:
+            return True
+            
+        # For POST/create operations, check project access
+        if request.method == 'POST':
+            user = request.user
+            project_id = request.data.get('project')
+            
+            if not project_id:
+                return False  # Project is required
+                
+            try:
+                project = Project.objects.get(id=project_id)
+                
+                # Check if user is external member of the project
+                if External.objects.filter(user=user, project=project).exists():
+                    return True
+                
+                # Check if user has organization access
+                if hasattr(project, 'organisation') and project.organisation:
+                    if UserOrganisation.objects.filter(
+                        user=user, 
+                        organisation=project.organisation
+                    ).exists():
+                        return True
+                        
+            except Project.DoesNotExist:
+                return False
+        
+        # For other unsafe methods, allow through to object-level permission
+        return True
+
     def has_object_permission(self, request, view, obj):
+        """Check permission for object-level operations (GET, PUT, DELETE)"""
         user = request.user
         if user.is_staff:
             return True
 
-        if hasattr(obj, 'event'):
-            if obj.event:
-                related_projects = Project.objects.filter(event=obj.event)
-                if External.objects.filter(
+        # Check if this is the user's own task
+        if hasattr(obj, 'user') and obj.user == user:
+            return True
+
+        # Check event-based access
+        if hasattr(obj, 'event') and obj.event:
+            # Get projects related to this event
+            related_projects = Project.objects.filter(event=obj.event)
+            if External.objects.filter(
+                user=user,
+                project__in=related_projects
+            ).exists():
+                return True
+                
+            # Check organization access via event calendar
+            if obj.event.calendar and hasattr(obj.event.calendar, 'organisation'):
+                org = obj.event.calendar.organisation
+                if UserOrganisation.objects.filter(
                     user=user,
-                    project__in=related_projects
+                    organisation=org
                 ).exists():
                     return True
-                    
-                if obj.event.calendar and hasattr(obj.event.calendar, 'organisation'):
-                    org = obj.event.calendar.organisation
-                    return UserOrganisation.objects.filter(
-                        user=user,
-                        organisation=org
-                    ).exists()
         
-        if hasattr(obj, 'project'):
+        # Check project-based access
+        if hasattr(obj, 'project') and obj.project:
+            # Check if user is external member of the project
             if External.objects.filter(
                 user=user,
                 project=obj.project
             ).exists():
                 return True
                 
-            if hasattr(obj.project, 'organisation'):
-                return UserOrganisation.objects.filter(
+            # Check organization access
+            if hasattr(obj.project, 'organisation') and obj.project.organisation:
+                if UserOrganisation.objects.filter(
                     user=user,
                     organisation=obj.project.organisation
-                ).exists()
-
-        return False
-        
-    def has_permission(self, request, view):
-        if request.method != 'POST':
-            return True
-
-        user = request.user
-        project_id = request.data.get('project')
-        if project_id:
-            try:
-                if External.objects.filter(user=user, project_id=project_id).exists():
+                ).exists():
                     return True
-                project = Project.objects.get(id=project_id)
-                if project.organisation and UserOrganisation.objects.filter(user=user, organisation=project.organisation).exists():
-                    return True
-            except Project.DoesNotExist:
-                pass
-
-        event_id = request.data.get('event')
-        if event_id:
-            try:
-                event = Event.objects.get(id=event_id)
-                projects = Project.objects.filter(event=event)
-                if External.objects.filter(user=user, project__in=projects).exists():
-                    return True
-                if event.calendar and hasattr(event.calendar, 'organisation'):
-                    return UserOrganisation.objects.filter(user=user, organisation=event.calendar.organisation).exists()
-            except Event.DoesNotExist:
-                pass
 
         return False
 
