@@ -2,7 +2,7 @@
 
 from .models import UserOrganisation, Project, Chat, External, Calendar, Event
 from rest_framework.exceptions import PermissionDenied
-from django.db.models import Q
+from django.db.models import Q, F
 
 def user_has_chat_access(user, chat):
     """
@@ -66,13 +66,33 @@ def get_user_accessible_calendars(user):
     return (org_calendars | project_calendars).distinct()
 
 def get_user_accessible_chats(user):
+    """
+    Get all chats a user has access to through:
+    1. Direct chat access (via ChatUser with view=True)
+    2. Project membership (via External -> Project -> Chat)
+    3. Organization membership (via UserOrganisation)
+    """
     if user.is_staff:
         return Chat.objects.all()
-    return Chat.objects.filter(
-        Q(chatuser__user=user, chatuser__view=True) |
-        Q(project__userproject__user=user) |
-        Q(organisation__userorganisation__user=user)
-    ).distinct()
+    
+    # Direct access via ChatUser
+    direct_chats = Chat.objects.filter(
+        chatuser__user=user, 
+        chatuser__view=True
+    )
+    
+    # Project-based access (Chat -> Project via OneToOne, Project -> External)
+    project_chats = Chat.objects.filter(
+        project__external__user=user
+    )
+    
+    # Organization-based access with role level filtering
+    org_chats = Chat.objects.filter(
+        organisation__userorganisation__user=user,
+        organisation__userorganisation__role__level__lte=F('min_role_level')
+    )
+    
+    return (direct_chats | project_chats | org_chats).distinct()
 
 
 def get_user_project_events(user):
