@@ -75,7 +75,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
         _selectedDeadline = task.deadline;
         _selectedUser = task.user != null
             ? users.firstWhere((u) => u.id == task.user,
-                orElse: () => users.first)
+                orElse: () => User(id: task.user!, username: 'Unknown'))
             : null;
 
         _isLoading = false;
@@ -213,7 +213,8 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                     _selectedDeadline = _task!.deadline;
                     _selectedUser = _task!.user != null
                         ? _projectUsers.firstWhere((u) => u.id == _task!.user,
-                            orElse: () => _projectUsers.first)
+                            orElse: () =>
+                                User(id: _task!.user!, username: 'Unknown'))
                         : null;
                   });
                 },
@@ -602,8 +603,11 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
               const SizedBox(height: 12),
             ],
             _buildDetailRow('Status', _getStatusText(_task!.status)),
-            if (_selectedUser != null)
-              _buildDetailRow('Assigned to', _selectedUser!.displayName),
+            if (_task!.user != null) ...[
+              _buildDetailRow('Assigned to',
+                  _selectedUser?.displayName ?? 'User #${_task!.user}'),
+            ] else
+              _buildDetailRow('Assigned to', 'Unassigned'),
             if (_task!.deadline != null)
               _buildDetailRow('Deadline', _formatDate(_task!.deadline!)),
             _buildDetailRow('Duration', '${_task!.duration} hours'),
