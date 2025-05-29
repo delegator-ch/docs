@@ -455,8 +455,7 @@ class ChatAccessView(models.Model):
 class OrganisationInvitation(models.Model):
     organisation = models.ForeignKey(Organisation, on_delete=models.CASCADE)
     invited_by = models.ForeignKey(User, on_delete=models.CASCADE)
-    invited_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_invitations')
-    role = models.ForeignKey(Role, on_delete=models.CASCADE)
+    invite_code = models.CharField(max_length=8, db_index=True)  # Add this
     role = models.ForeignKey(Role, on_delete=models.CASCADE)
     token = models.CharField(max_length=64, unique=True, db_index=True)
     created = models.DateTimeField(auto_now_add=True)
@@ -465,7 +464,7 @@ class OrganisationInvitation(models.Model):
     declined = models.BooleanField(default=False)
     
     class Meta:
-        unique_together = ('organisation', 'invited_user')  # Changed from 'email'
+        unique_together = ('organisation', 'invite_code')  # Changed from 'invited_user'
     
     def save(self, *args, **kwargs):
         if not self.token:
