@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import (
     Organisation, Role, UserOrganisation, Calendar, Event, Project, Chat,
-    ChatUser, Message, Song, Timetable, Setlist, History, Status, Task, Recording, External, ChatAccessView
+    ChatUser, Message, Song, Timetable, Setlist, History, Status, Task, Recording, External, ChatAccessView, OrganisationInvitation
 )
 
 # Add this serializer to your serializers.py file
@@ -314,3 +314,33 @@ class UserDetailSerializer(serializers.ModelSerializer):
     def get_ical_url(self, obj):
         request = self.context.get('request')
         return obj.get_ical_url(request)
+
+class OrganisationInvitationSerializer(serializers.ModelSerializer):
+    organisation_details = OrganisationSerializer(source='organisation', read_only=True)
+    role_details = RoleSerializer(source='role', read_only=True)
+    invited_by_details = UserSerializer(source='invited_by', read_only=True)
+    invitation_url = serializers.SerializerMethodField()
+    can_accept = serializers.SerializerMethodField()
+    is_expired = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = OrganisationInvitation
+        fields = [
+            'id', 'organisation', 'invited_by', 'email', 'role', 'token',
+            'created', 'expires', 'accepted', 'declined',
+            'organisation_details', 'role_details', 'invited_by_details',
+            'invitation_url', 'can_accept', 'is_expired'
+        ]
+        read_only_fields = ['token', 'created', 'invited_by', 'accepted', 'declined']
+    
+    def get_invitation_url(self, obj):
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(f'/invitations/{obj.token}/')
+        return f'/invitations/{obj.token}/'
+    
+    def get_can_accept(self, obj):
+        return obj.can_accept()
+    
+    def get_is_expired(self, obj):
+        return obj.is_expired()

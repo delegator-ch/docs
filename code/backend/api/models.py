@@ -9,6 +9,9 @@ from django.urls import reverse
 from django.conf import settings
 import logging
 
+from django.utils.crypto import get_random_string
+from datetime import timedelta
+
 # So the song nr can be auto generated
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
@@ -43,6 +46,8 @@ class User(AbstractUser):
         verbose_name='user permissions',
     )
     is_premium = models.BooleanField(default=False)
+    created = models.DateTimeField(auto_now_add=True)
+    invite_code = models.CharField(max_length=8, unique=True, db_index=True)
 
     def __str__(self):
         return self.username
@@ -73,7 +78,20 @@ class User(AbstractUser):
             url = f"{settings.SITE_URL}{url}"
         
         return url
-    created = models.DateTimeField(auto_now_add=True)
+    
+    def save(self, *args, **kwargs):
+        if not self.invite_code:
+            self.invite_code = self.generate_unique_invite_code()
+        super().save(*args, **kwargs)
+    
+    @classmethod
+    def generate_unique_invite_code(cls):
+        """Generate a unique 8-character alphanumeric code"""
+        chars = string.ascii_uppercase + string.digits
+        while True:
+            code = ''.join(random.choices(chars, k=8))
+            if not cls.objects.filter(invite_code=code).exists():
+                return code
     
     # Add related_name arguments to avoid clashes with auth.User
     groups = models.ManyToManyField(
@@ -433,3 +451,34 @@ class ChatAccessView(models.Model):
     class Meta:
         managed = False
         db_table = 'chat_access_view'
+
+class OrganisationInvitation(models.Model):
+    organisation = models.ForeignKey(Organisation, on_delete=models.CASCADE)
+    invited_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    invited_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_invitations')
+    role = models.ForeignKey(Role, on_delete=models.CASCADE)
+    role = models.ForeignKey(Role, on_delete=models.CASCADE)
+    token = models.CharField(max_length=64, unique=True, db_index=True)
+    created = models.DateTimeField(auto_now_add=True)
+    expires = models.DateTimeField()
+    accepted = models.BooleanField(default=False)
+    declined = models.BooleanField(default=False)
+    
+    class Meta:
+        unique_together = ('organisation', 'invited_user')  # Changed from 'email'
+    
+    def save(self, *args, **kwargs):
+        if not self.token:
+            self.token = get_random_string(64)
+        if not self.expires:
+            self.expires = timezone.now() + timedelta(days=7)
+        super().save(*args, **kwargs)
+    
+    def is_expired(self):
+        return timezone.now() > self.expires
+    
+    def can_accept(self):
+        return not self.accepted and not self.declined and not self.is_expired()
+    
+    def __str__(self):
+        return f"Invitation to {self.organisation.name} for {self.email}"

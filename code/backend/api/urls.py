@@ -7,7 +7,10 @@ from .views import (
     CalendarViewSet, EventViewSet, ProjectViewSet, ChatViewSet, ChatUserViewSet,
     MessageViewSet, SongViewSet, TimetableViewSet, SetlistViewSet,
     HistoryViewSet, StatusViewSet, TaskViewSet, RecordingViewSet, ExternalViewSet, 
-    ChatAccessViewSet, upgrade_to_premium, get_users_by_project, get_externals_by_project, get_externals_by_organisation, remove_user_from_organisation, get_all_users_by_organisation
+    ChatAccessViewSet, upgrade_to_premium, get_users_by_project, get_externals_by_project, get_externals_by_organisation, 
+    remove_user_from_organisation, get_all_users_by_organisation,
+    OrganisationInvitationViewSet, get_invitation_details,
+    accept_invitation, decline_invitation, my_invitations, my_profile
 )
 # Update api/urls.py to include JWT views
 from rest_framework_simplejwt.views import (
@@ -43,6 +46,7 @@ router.register(r'tasks', TaskViewSet)
 router.register(r'recordings', RecordingViewSet)
 router.register(r'externals', ExternalViewSet)
 router.register(r'chat-access', ChatAccessViewSet)
+router.register(r'invitations', OrganisationInvitationViewSet)
 
 # This line is crucial - make sure it exists at the bottom of the file
 urlpatterns = router.urls
@@ -66,6 +70,8 @@ urlpatterns += [
     path('upgrade-to-premium/', upgrade_to_premium, name='upgrade_to_premium'),
 ]
 
+
+
 # Add these to your urlpatterns list
 urlpatterns += [
     # Public iCalendar feeds (accessible with token)
@@ -82,7 +88,15 @@ urlpatterns += [
     path('organisations/<int:org_id>/externals/', get_externals_by_organisation, name='organisation-externals'),
     path('organisations/<int:org_id>/users/', get_all_users_by_organisation, name='organisation-all-users'),
     path('organisations/<int:org_id>/users/<int:user_id>/', remove_user_from_organisation, name='remove-user-from-org'),
-
 ]
+
+urlpatterns += [
+    path('invitations/<str:token>/', get_invitation_details, name='invitation-details'),
+    path('invitations/<str:token>/accept/', accept_invitation, name='accept-invitation'),
+    path('invitations/<str:token>/decline/', decline_invitation, name='decline-invitation'),
+    path('my-invitations/', my_invitations, name='my-invitations'),
+    path('my-profile/', my_profile, name='my-profile'),
+]
+
 
 

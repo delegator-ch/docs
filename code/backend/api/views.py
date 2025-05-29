@@ -17,7 +17,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import (
     Organisation, Role, UserOrganisation, Calendar, Event, Project, Chat,
     ChatUser, Message, Song, Timetable, Setlist, History, Status,
-    Task, Recording, External, ChatAccessView
+    Task, Recording, External, ChatAccessView, OrganisationInvitation
 )
 
 from .serializers import (
@@ -26,14 +26,13 @@ from .serializers import (
     ProjectSerializer, ProjectDetailSerializer, ChatSerializer, ChatUserSerializer,
     MessageSerializer, SongSerializer, TimetableSerializer, SetlistSerializer,
     HistorySerializer, StatusSerializer, TaskSerializer, RecordingSerializer,
-    ExternalSerializer, ChatAccessSerializer
+    ExternalSerializer, ChatAccessSerializer, OrganisationInvitationSerializer
 )
 
 from .permissions import CanAccessCalendar, CanAccessChat, HasSongPermission, IsMessageOwnerOrReadOnly, IsProjectMember, IsPartOfOrganisationAndStaff, HasProjectAccess
 from .utils import get_user_accessible_calendars, get_user_accessible_chats, user_has_chat_access, get_user_project_events, get_user_accessible_calendars, get_user_project_queryset, check_project_access
 
 User = get_user_model()
-
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -642,8 +641,6 @@ def get_all_users_by_organisation(request, org_id):
         'total_users': all_users.count()
     })
 
-# Add this to views.py
-
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def remove_user_from_organisation(request, org_id, user_id):
@@ -704,3 +701,198 @@ def remove_user_from_organisation(request, org_id, user_id):
             {"detail": "User is not a member of this organisation."},
             status=status.HTTP_404_NOT_FOUND
         )
+
+class OrganisationInvitationViewSet(viewsets.ModelViewSet):
+    queryset = OrganisationInvitation.objects.all()
+    serializer_class = OrganisationInvitationSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['organisation', 'invited_user', 'accepted', 'declined']
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_staff:
+            return OrganisationInvitation.objects.all()
+        
+        # Users can see invitations for organizations they admin
+        admin_orgs = UserOrganisation.objects.filter(
+            user=user, 
+            role_id=1  # Admin role
+        ).values_list('organisation_id', flat=True)
+        
+        # Also include invitations sent to them
+        return OrganisationInvitation.objects.filter(
+            Q(organisation_id__in=admin_orgs) | Q(invited_user=user)
+        )
+    
+    def perform_create(self, serializer):
+        # Check if user can invite to this organization
+        org = serializer.validated_data['organisation']
+        user = self.request.user
+        
+        if not user.is_staff:
+            is_admin = UserOrganisation.objects.filter(
+                user=user,
+                organisation=org,
+                role_id=1  # Admin role
+            ).exists()
+            
+            if not is_admin:
+                raise PermissionDenied("Only admins can invite users to this organization.")
+        
+        serializer.save(invited_by=user)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_invitation_details(request, token):
+    """Public endpoint to view invitation details"""
+    try:
+        invitation = OrganisationInvitation.objects.select_related(
+            'organisation', 'role', 'invited_by', 'invited_user'
+        ).get(token=token)
+    except OrganisationInvitation.DoesNotExist:
+        return Response(
+            {"detail": "Invitation not found."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    serializer = OrganisationInvitationSerializer(invitation, context={'request': request})
+    return Response(serializer.data)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def accept_invitation(request, token):
+    """Accept an organization invitation"""
+    try:
+        invitation = OrganisationInvitation.objects.select_related(
+            'organisation', 'role'
+        ).get(token=token)
+    except OrganisationInvitation.DoesNotExist:
+        return Response(
+            {"detail": "Invitation not found."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    user = request.user
+    
+    # Check if invitation is for this user
+    if invitation.invited_user != user:
+        return Response(
+            {"detail": "This invitation is not for you."},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    # Check if invitation can be accepted
+    if not invitation.can_accept():
+        if invitation.accepted:
+            return Response(
+                {"detail": "Invitation already accepted."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        elif invitation.declined:
+            return Response(
+                {"detail": "Invitation was declined."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        elif invitation.is_expired():
+            return Response(
+                {"detail": "Invitation has expired."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    
+    # Check if user is already in organization
+    if UserOrganisation.objects.filter(
+        user=user, 
+        organisation=invitation.organisation
+    ).exists():
+        return Response(
+            {"detail": "You are already a member of this organization."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Accept invitation
+    UserOrganisation.objects.create(
+        user=user,
+        organisation=invitation.organisation,
+        role=invitation.role
+    )
+    
+    invitation.accepted = True
+    invitation.save()
+    
+    return Response({
+        "detail": f"Successfully joined {invitation.organisation.name}",
+        "organisation": {
+            "id": invitation.organisation.id,
+            "name": invitation.organisation.name
+        },
+        "role": {
+            "id": invitation.role.id,
+            "name": invitation.role.name
+        }
+    })
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def decline_invitation(request, token):
+    """Decline an organization invitation"""
+    try:
+        invitation = OrganisationInvitation.objects.get(token=token)
+    except OrganisationInvitation.DoesNotExist:
+        return Response(
+            {"detail": "Invitation not found."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    user = request.user
+    
+    # Check if invitation is for this user
+    if invitation.invited_user != user:
+        return Response(
+            {"detail": "This invitation is not for you."},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    # Check if already processed
+    if invitation.accepted or invitation.declined:
+        return Response(
+            {"detail": "Invitation already processed."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    invitation.declined = True
+    invitation.save()
+    
+    return Response({
+        "detail": f"Declined invitation to {invitation.organisation.name}"
+    })
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_invitations(request):
+    """Get pending invitations for current user"""
+    user = request.user
+    pending_invitations = OrganisationInvitation.objects.filter(
+        invited_user=user,
+        accepted=False,
+        declined=False
+    ).select_related('organisation', 'role', 'invited_by')
+    
+    serializer = OrganisationInvitationSerializer(
+        pending_invitations, 
+        many=True, 
+        context={'request': request}
+    )
+    
+    return Response({
+        'pending_invitations': serializer.data,
+        'count': pending_invitations.count()
+    })
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_profile(request):
+    """Get current user's profile including invite code"""
+    user = request.user
+    serializer = UserDetailSerializer(user, context={'request': request})
+    return Response(serializer.data)
