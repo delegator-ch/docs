@@ -316,22 +316,27 @@ class UserDetailSerializer(serializers.ModelSerializer):
         return obj.get_ical_url(request)
 
 class OrganisationInvitationSerializer(serializers.ModelSerializer):
-    organisation_details = OrganisationSerializer(source='organisation', read_only=True)
-    role_details = RoleSerializer(source='role', read_only=True)
-    invited_by_details = UserSerializer(source='invited_by', read_only=True)
-    invitation_url = serializers.SerializerMethodField()
-    can_accept = serializers.SerializerMethodField()
-    is_expired = serializers.SerializerMethodField()
+    invite_code = serializers.CharField(write_only=True)
     
     class Meta:
         model = OrganisationInvitation
         fields = [
-            'id', 'organisation', 'invited_by', 'email', 'role', 'token',
+            'id', 'organisation', 'invited_by', 'invite_code', 'role', 'token',
             'created', 'expires', 'accepted', 'declined',
             'organisation_details', 'role_details', 'invited_by_details',
             'invitation_url', 'can_accept', 'is_expired'
         ]
         read_only_fields = ['token', 'created', 'invited_by', 'accepted', 'declined']
+    
+    def create(self, validated_data):
+        invite_code = validated_data.pop('invite_code')
+        try:
+            invited_user = User.objects.get(invite_code=invite_code)
+        except User.DoesNotExist:
+            raise serializers.ValidationError({'invite_code': 'Invalid invite code'})
+        
+        validated_data['invited_user'] = invited_user
+        return super().create(validated_data)
     
     def get_invitation_url(self, obj):
         request = self.context.get('request')
@@ -344,3 +349,8 @@ class OrganisationInvitationSerializer(serializers.ModelSerializer):
     
     def get_is_expired(self, obj):
         return obj.is_expired()
+
+class InviteCodeSerializer(serializers.ModelSerializer):    
+    class Meta:
+        model = User
+        read_only_fields = ['invite_code']  # Added invite_code to read_only_fields

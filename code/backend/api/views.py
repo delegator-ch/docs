@@ -26,7 +26,7 @@ from .serializers import (
     ProjectSerializer, ProjectDetailSerializer, ChatSerializer, ChatUserSerializer,
     MessageSerializer, SongSerializer, TimetableSerializer, SetlistSerializer,
     HistorySerializer, StatusSerializer, TaskSerializer, RecordingSerializer,
-    ExternalSerializer, ChatAccessSerializer, OrganisationInvitationSerializer
+    ExternalSerializer, ChatAccessSerializer, OrganisationInvitationSerializer, InviteCodeSerializer
 )
 
 from .permissions import CanAccessCalendar, CanAccessChat, HasSongPermission, IsMessageOwnerOrReadOnly, IsProjectMember, IsPartOfOrganisationAndStaff, HasProjectAccess
@@ -892,7 +892,5 @@ def my_invitations(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def my_profile(request):
-    """Get current user's profile including invite code"""
-    user = request.user
-    serializer = UserDetailSerializer(user, context={'request': request})
-    return Response(serializer.data)
+    serializer = InviteCodeSerializer(request.user, context={'request': request})
+    return serializer.data

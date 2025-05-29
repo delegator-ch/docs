@@ -25,7 +25,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='user',
             name='invite_code',
-            field=models.CharField(db_index=True, default='peinlich', max_length=8, unique=True),
+            field=models.CharField(db_index=True, default='', max_length=8, unique=True),
             preserve_default=False,
         ),
         migrations.AlterField(
