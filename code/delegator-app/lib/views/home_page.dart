@@ -1,4 +1,4 @@
-// lib/views/home_page.dart (Updated with task edit navigation)
+// lib/views/home_page.dart (Updated to show all project tasks)
 
 import 'package:flutter/material.dart';
 import '../services/service_registry.dart';
@@ -7,7 +7,7 @@ import '../models/task.dart';
 import '../models/event.dart';
 import 'project_detail_page.dart';
 import 'projects_page.dart';
-import 'task_detail_page.dart'; // Add this import
+import 'task_detail_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -67,16 +67,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       final allTasks = futures[1] as List<Task>;
       final events = futures[2] as List<Event>;
 
-      // Filter tasks: assigned to me OR unassigned AND status 1 or 2 AND from active projects
+      // Filter tasks: status 1 or 2 AND from active projects
       final filteredTasks = allTasks.where((task) {
-        final isAssignedToMeOrUnassigned =
-            task.user == _currentUserId || task.user == null;
         final isBacklogOrInProgress = task.status == 1 || task.status == 2;
         final isFromActiveProject =
             projects.any((project) => project.id == task.project);
-        return isAssignedToMeOrUnassigned &&
-            isBacklogOrInProgress &&
-            isFromActiveProject;
+        return isBacklogOrInProgress && isFromActiveProject;
       }).toList();
 
       setState(() {
@@ -499,7 +495,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 Icon(Icons.task, color: Colors.orange),
                 const SizedBox(width: 8),
                 Text(
-                  'Upcoming Tasks',
+                  'Project Tasks',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,

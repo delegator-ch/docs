@@ -73,10 +73,28 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
         _contentController.text = task.content ?? '';
         _selectedStatus = task.status;
         _selectedDeadline = task.deadline;
-        _selectedUser = task.user != null
-            ? users.firstWhere((u) => u.id == task.user,
-                orElse: () => User(id: task.user!, username: 'Unknown'))
-            : null;
+
+        // Use user_details from task if available, otherwise look in project users
+        if (task.user != null) {
+          // First try to find user in project users list
+          User? foundUser = users.where((u) => u.id == task.user).isNotEmpty
+              ? users.firstWhere((u) => u.id == task.user)
+              : null;
+
+          // If not found in project users but task has user_details, use that
+          if (foundUser == null && task.userDetails != null) {
+            foundUser = task.userDetails;
+          }
+
+          // If still not found, create a placeholder user
+          if (foundUser == null) {
+            foundUser = User(id: task.user!, username: 'Unknown User');
+          }
+
+          _selectedUser = foundUser;
+        } else {
+          _selectedUser = null;
+        }
 
         _isLoading = false;
       });
@@ -211,11 +229,28 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                     _contentController.text = _task!.content ?? '';
                     _selectedStatus = _task!.status;
                     _selectedDeadline = _task!.deadline;
-                    _selectedUser = _task!.user != null
-                        ? _projectUsers.firstWhere((u) => u.id == _task!.user,
-                            orElse: () =>
-                                User(id: _task!.user!, username: 'Unknown'))
-                        : null;
+
+                    // Reset selected user
+                    if (_task!.user != null) {
+                      User? foundUser = _projectUsers
+                              .where((u) => u.id == _task!.user)
+                              .isNotEmpty
+                          ? _projectUsers.firstWhere((u) => u.id == _task!.user)
+                          : null;
+
+                      if (foundUser == null && _task!.userDetails != null) {
+                        foundUser = _task!.userDetails;
+                      }
+
+                      if (foundUser == null) {
+                        foundUser =
+                            User(id: _task!.user!, username: 'Unknown User');
+                      }
+
+                      _selectedUser = foundUser;
+                    } else {
+                      _selectedUser = null;
+                    }
                   });
                 },
               ),
@@ -603,9 +638,8 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
               const SizedBox(height: 12),
             ],
             _buildDetailRow('Status', _getStatusText(_task!.status)),
-            if (_task!.user != null) ...[
-              _buildDetailRow('Assigned to',
-                  _selectedUser?.displayName ?? 'User #${_task!.user}'),
+            if (_selectedUser != null) ...[
+              _buildDetailRow('Assigned to', _selectedUser!.displayName),
             ] else
               _buildDetailRow('Assigned to', 'Unassigned'),
             if (_task!.deadline != null)

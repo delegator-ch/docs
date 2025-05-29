@@ -1,5 +1,7 @@
 // lib/models/task.dart
 
+import 'user.dart';
+
 class Task {
   final int? id;
   final int? user;
@@ -13,6 +15,7 @@ class Task {
   final DateTime? deadline;
   final int? dependentOnTaskId;
   final int? event;
+  final User? userDetails;
 
   Task({
     this.id,
@@ -27,6 +30,7 @@ class Task {
     this.deadline,
     this.dependentOnTaskId,
     this.event,
+    this.userDetails,
   });
 
   factory Task.fromJson(Map<String, dynamic> json) {
@@ -37,12 +41,16 @@ class Task {
       content: json['content'],
       duration: json['duration'] ?? 0,
       status: json['status'],
+      user: json['user'],
       created: json['created'] != null ? DateTime.parse(json['created']) : null,
       updated: json['updated'] != null ? DateTime.parse(json['updated']) : null,
       deadline:
           json['deadline'] != null ? DateTime.parse(json['deadline']) : null,
       dependentOnTaskId: json['dependent_on_task'],
       event: json['event'] != null ? json['event'] : null,
+      userDetails: json['user_details'] != null
+          ? User.fromJson(json['user_details'])
+          : null,
     );
   }
 
