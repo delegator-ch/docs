@@ -13,13 +13,17 @@ class InfoPage extends StatefulWidget {
 
 class _InfoPageState extends State<InfoPage> {
   User? _currentUser;
+  String? _inviteCode;
   bool _isLoading = true;
+  bool _isLoadingInvite = false;
   String? _errorMessage;
+  String? _inviteError;
 
   @override
   void initState() {
     super.initState();
     _loadUserInfo();
+    _loadInviteCode();
   }
 
   Future<void> _loadUserInfo() async {
@@ -42,13 +46,38 @@ class _InfoPageState extends State<InfoPage> {
     }
   }
 
+  Future<void> _loadInviteCode() async {
+    setState(() {
+      _isLoadingInvite = true;
+      _inviteError = null;
+    });
+
+    try {
+      final response = await ServiceRegistry().apiClient.get('my-profile/');
+      setState(() {
+        _inviteCode = "#" + response['invite_code'];
+        _isLoadingInvite = false;
+      });
+    } catch (e) {
+      setState(() {
+        _inviteError = e.toString();
+        _isLoadingInvite = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Info'),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadUserInfo),
+          IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () {
+                _loadUserInfo();
+                _loadInviteCode();
+              }),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
@@ -91,7 +120,10 @@ class _InfoPageState extends State<InfoPage> {
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _loadUserInfo,
+              onPressed: () {
+                _loadUserInfo();
+                _loadInviteCode();
+              },
               child: const Text('Retry'),
             ),
           ],
@@ -106,12 +138,142 @@ class _InfoPageState extends State<InfoPage> {
         children: [
           _buildUserCard(),
           const SizedBox(height: 20),
+          _buildInviteCodeCard(),
+          const SizedBox(height: 20),
           _buildAppInfoCard(),
           const SizedBox(height: 20),
           _buildServicesStatusCard(),
           const SizedBox(height: 20),
           _buildSettingsCard(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildInviteCodeCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.code, color: Colors.green),
+                const SizedBox(width: 8),
+                Text(
+                  'Invite Code',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                if (_isLoadingInvite)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    onPressed: _loadInviteCode,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (_inviteError != null)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red[600]),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _inviteError!,
+                        style: TextStyle(color: Colors.red[700]),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (_inviteCode != null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.green[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green[200]!),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      _inviteCode!,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        TextButton.icon(
+                          onPressed: () {
+                            // Copy to clipboard
+                            // TODO: Add clipboard package and implement
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Copy feature coming soon!')),
+                            );
+                          },
+                          icon: const Icon(Icons.copy, size: 16),
+                          label: const Text('Copy'),
+                        ),
+                        const SizedBox(width: 16),
+                        TextButton.icon(
+                          onPressed: () {
+                            // Share functionality
+                            // TODO: Add share package and implement
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Share feature coming soon!')),
+                            );
+                          },
+                          icon: const Icon(Icons.share, size: 16),
+                          label: const Text('Share'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              )
+            else
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: const Text(
+                  'No invite code available',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -402,53 +564,48 @@ class _InfoPageState extends State<InfoPage> {
   }
 
   Future<void> _clearCache() async {
-    // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Clear Cache'),
-            content: const Text(
-              'Are you sure you want to clear the app cache? This action cannot be undone.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Clear'),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: const Text('Clear Cache'),
+        content: const Text(
+          'Are you sure you want to clear the app cache? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
           ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
     );
 
     if (confirmed == true) {
-      // TODO: Implement cache clearing logic
       _showSnackBar('Cache cleared successfully');
     }
   }
 
   Future<void> _logout() async {
-    // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Logout'),
-            content: const Text('Are you sure you want to logout?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Logout'),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
           ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
     );
 
     if (confirmed == true) {
