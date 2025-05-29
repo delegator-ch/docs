@@ -385,15 +385,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         const SizedBox(width: 12),
         Expanded(
           child: _buildStatCard(
-            'Completed',
-            completedTasks.toString(),
-            Icons.check_circle,
-            Colors.green,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
             'Members',
             _projectMembers.length.toString(),
             Icons.people,
@@ -506,7 +497,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       String title, String value, IconData icon, Color color) {
     return Card(
       child: InkWell(
-        onTap: title == 'Chat' ? _openProjectChat : null,
+        onTap: title == 'Total Tasks'
+            ? _navigateToTasksList
+            : (title == 'Chat' ? _openProjectChat : null),
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.all(16),
