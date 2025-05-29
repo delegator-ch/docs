@@ -893,4 +893,4 @@ def my_invitations(request):
 @permission_classes([IsAuthenticated])
 def my_profile(request):
     serializer = InviteCodeSerializer(request.user, context={'request': request})
-    return serializer.data
+    return Response(serializer.data) 

@@ -344,4 +344,5 @@ class OrganisationInvitationSerializer(serializers.ModelSerializer):
 class InviteCodeSerializer(serializers.ModelSerializer):    
     class Meta:
         model = User
+        fields = ['invite_code']  # Add this line
         read_only_fields = ['invite_code']  # Added invite_code to read_only_fields
