@@ -383,7 +383,7 @@ class _ManageProjectUsersDialogState extends State<ManageProjectUsersDialog>
                 Icon(Icons.business, color: Colors.blue[700]),
                 const SizedBox(width: 8),
                 Text(
-                  'Organization Members (${_orgMembers.length}) - Auto-assigned',
+                  'Org Members (${_orgMembers.length})',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.blue[700],
@@ -413,7 +413,7 @@ class _ManageProjectUsersDialogState extends State<ManageProjectUsersDialog>
                 Icon(Icons.person_add, color: Colors.orange[700]),
                 const SizedBox(width: 8),
                 Text(
-                  'External Members (${widget.currentMembers.length}) - Manually added',
+                  'External Members (${widget.currentMembers.length})',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.orange[700],
