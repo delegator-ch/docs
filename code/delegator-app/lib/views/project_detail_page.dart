@@ -499,7 +499,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       child: InkWell(
         onTap: title == 'Total Tasks'
             ? _navigateToTasksList
-            : (title == 'Chat' ? _openProjectChat : null),
+            : (title == 'Chat'
+                ? _openProjectChat
+                : (title == 'Members' ? _manageUsers : null)),
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.all(16),
