@@ -53,12 +53,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
     try {
       // Get current user first
+      // Get current user first
       final currentUser = await ServiceRegistry().authService.getCurrentUser();
       _currentUserId = currentUser?.id;
 
-      // Load data in parallel - get only active projects (status 2)
+// Load data in parallel
       final futures = await Future.wait([
-        ServiceRegistry().projectService.getByStatus(2), // Only active projects
+        ServiceRegistry().projectService.getByStatus(2),
         ServiceRegistry().taskService.getAll(),
         ServiceRegistry().eventService.getAll(),
       ]);
@@ -67,12 +68,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       final allTasks = futures[1] as List<Task>;
       final events = futures[2] as List<Event>;
 
-      // Filter tasks: status 1 or 2 AND from active projects
+// Filter tasks: assigned to current user AND from active projects
       final filteredTasks = allTasks.where((task) {
-        final isBacklogOrInProgress = task.status == 1 || task.status == 2;
+        final isAssignedToMe = task.user == _currentUserId;
         final isFromActiveProject =
             projects.any((project) => project.id == task.project);
-        return isBacklogOrInProgress && isFromActiveProject;
+        final isBacklogOrInProgress = task.status == 1 || task.status == 2;
+        return isAssignedToMe && isFromActiveProject && isBacklogOrInProgress;
       }).toList();
 
       setState(() {
