@@ -5,7 +5,7 @@ import pytz
 from django.conf import settings
 from django.urls import reverse
 
-from .models import Calendar, Event, Task
+from .models import Calendar, Event, Task, Project
 
 def generate_ical_for_calendar(calendar, request=None, user=None):
     """
@@ -47,6 +47,16 @@ def generate_ical_for_calendar(calendar, request=None, user=None):
         ical_task = create_task_deadline_entry(task, request)
         cal.add_component(ical_task)
     
+    # Add project deadlines for projects in this organization
+    projects_with_deadlines = Project.objects.filter(
+        organisation=calendar.organisation,
+        deadline__isnull=False
+    )
+    
+    for project in projects_with_deadlines:
+        ical_project = create_project_deadline_entry(project, request)
+        cal.add_component(ical_project)
+    
     return cal.to_ical()
 
 
@@ -71,8 +81,8 @@ def generate_ical_for_user(user, request=None):
     cal.add('x-wr-timezone', 'UTC')
     
     # Get events from projects the user is assigned to
-    from .models import Project, UserProject
-    user_projects = Project.objects.filter(userproject__user=user)
+    from .models import Project, External
+    user_projects = Project.objects.filter(external__user=user)
     events = Event.objects.filter(project__in=user_projects)
     
     # Add events to calendar
@@ -90,6 +100,16 @@ def generate_ical_for_user(user, request=None):
     for task in tasks_with_deadlines:
         ical_task = create_task_deadline_entry(task, request)
         cal.add_component(ical_task)
+    
+    # Add project deadlines for projects the user is assigned to
+    projects_with_deadlines = Project.objects.filter(
+        external__user=user,
+        deadline__isnull=False
+    )
+    
+    for project in projects_with_deadlines:
+        ical_project = create_project_deadline_entry(project, request)
+        cal.add_component(ical_project)
     
     return cal.to_ical()
 
@@ -172,7 +192,7 @@ def create_task_deadline_entry(task, request=None):
     ical_event.add('uid', uid)
     
     # Task summary
-    summary = f"DEADLINE: {task.title}"
+    summary = f"Task: {task.title}"
     ical_event.add('summary', summary)
     
     # Use deadline as the event time (make it a short event)
@@ -216,5 +236,61 @@ def create_task_deadline_entry(task, request=None):
     
     # Mark as deadline/reminder
     ical_event.add('categories', 'DEADLINE')
+    
+    return ical_event
+
+
+def create_project_deadline_entry(project, request=None):
+    """Create an iCal event entry for a Project deadline"""
+    ical_event = ICalEvent()
+    
+    # Generate a UID for this project deadline
+    uid = f"project-deadline-{project.id}@{settings.SITE_DOMAIN}" if hasattr(settings, 'SITE_DOMAIN') else f"project-deadline-{project.id}@bandmanager.app"
+    ical_event.add('uid', uid)
+    
+    # Project summary
+    summary = f"Project: {project.name}"
+    ical_event.add('summary', summary)
+    
+    # Use deadline as the event time
+    if isinstance(project.deadline, datetime):
+        start_time = project.deadline
+        end_time = project.deadline
+    else:
+        # If deadline is date only, set time to end of day
+        start_time = datetime.combine(project.deadline, datetime.min.time().replace(hour=23, minute=59))
+        end_time = start_time
+    
+    # Handle timezone
+    timezone = pytz.timezone('UTC')
+    if start_time.tzinfo is None:
+        start_time = timezone.localize(start_time)
+    if end_time.tzinfo is None:
+        end_time = timezone.localize(end_time)
+    
+    ical_event.add('dtstart', start_time)
+    ical_event.add('dtend', end_time)
+    
+    # Add creation timestamp
+    now = datetime.now(timezone)
+    ical_event.add('dtstamp', now)
+    
+    # Add URL to view the project
+    if request and hasattr(settings, 'FRONTEND_URL'):
+        project_url = f"{settings.FRONTEND_URL}/projects/{project.id}"
+        ical_event.add('url', project_url)
+    
+    # Add description
+    description = f"Project Deadline\n"
+    description += f"Organization: {project.organisation.name}\n"
+    description += f"Priority: {project.priority}\n"
+    description += f"Status: {project.status.name}\n" if project.status else ""
+    if project.event:
+        description += f"Related Event: {project.event.id}\n"
+    
+    ical_event.add('description', description)
+    
+    # Mark as project deadline
+    ical_event.add('categories', 'PROJECT_DEADLINE')
     
     return ical_event

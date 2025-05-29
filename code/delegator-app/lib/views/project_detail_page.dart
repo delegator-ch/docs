@@ -1,4 +1,4 @@
-// lib/views/project_detail_page.dart (Updated with task edit navigation)
+// lib/views/project_detail_page.dart (Updated with edit functionality and removed share/archive)
 
 import 'package:flutter/material.dart';
 import '../services/service_registry.dart';
@@ -9,7 +9,9 @@ import '../models/user.dart';
 import 'chat_detail_page.dart';
 import 'create_task_dialog.dart';
 import 'manage_project_users_dialog.dart';
-import 'task_detail_page.dart'; // Add this import
+import 'task_detail_page.dart';
+import 'edit_project_dialog.dart';
+import 'tasks_list_page.dart'; // Add this import
 
 class ProjectDetailPage extends StatefulWidget {
   final int projectId;
@@ -110,12 +112,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                 case 'manage_users':
                   _manageUsers();
                   break;
-                case 'share':
-                  _shareProject();
-                  break;
-                case 'archive':
-                  _archiveProject();
-                  break;
               }
             },
             itemBuilder: (context) => [
@@ -136,26 +132,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                     Icon(Icons.people, color: Colors.blue),
                     SizedBox(width: 12),
                     Text('Manage Members'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'share',
-                child: Row(
-                  children: [
-                    Icon(Icons.share, color: Colors.grey),
-                    SizedBox(width: 12),
-                    Text('Share Project'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'archive',
-                child: Row(
-                  children: [
-                    Icon(Icons.archive, color: Colors.orange),
-                    SizedBox(width: 12),
-                    Text('Archive Project'),
                   ],
                 ),
               ),
@@ -439,6 +415,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
   Widget _buildProjectHeader() {
     return Card(
+        child: InkWell(
+      onTap: _editProject,
+      borderRadius: BorderRadius.circular(8),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(20),
@@ -520,7 +499,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildStatCard(
@@ -615,18 +594,29 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(Icons.task, color: Colors.blue),
-                const SizedBox(width: 8),
-                Text(
-                  'Tasks (${_tasks.length})',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+            InkWell(
+              onTap: _navigateToTasksList,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Row(
+                  children: [
+                    Icon(Icons.task, color: Colors.blue),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Tasks (${_tasks.length})',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Icon(Icons.arrow_forward_ios,
+                        size: 16, color: Colors.grey[400]),
+                  ],
                 ),
-              ],
+              ),
             ),
             const SizedBox(height: 12),
             if (_tasks.isEmpty)
@@ -903,22 +893,23 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     );
   }
 
-  void _editProject() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Edit project coming soon!')),
-    );
-  }
+  Future<void> _editProject() async {
+    if (_project == null) return;
 
-  void _shareProject() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Share project coming soon!')),
+    final Project? updatedProject = await showDialog<Project>(
+      context: context,
+      builder: (context) => EditProjectDialog(project: _project!),
     );
-  }
 
-  void _archiveProject() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Archive project coming soon!')),
-    );
+    if (updatedProject != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+              Text('Project "${updatedProject.name}" updated successfully!'),
+        ),
+      );
+      _loadProjectData(); // Refresh the project data
+    }
   }
 
   Future<void> _addTask() async {
@@ -946,6 +937,17 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   void _addMember() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Add member coming soon!')),
+    );
+  }
+
+  void _navigateToTasksList() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => TasksListPage(
+          projectId: widget.projectId,
+          projectName: _project?.name,
+        ),
+      ),
     );
   }
 
