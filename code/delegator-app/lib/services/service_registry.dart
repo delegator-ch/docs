@@ -1,4 +1,4 @@
-// lib/services/service_registry.dart (Updated with ExternalService)
+// lib/services/service_registry.dart (Updated with auto token refresh)
 
 import 'package:delegator/services/chat_service.dart';
 import 'package:delegator/services/message_service.dart';
@@ -48,8 +48,20 @@ class ServiceRegistry {
     // Create API client first
     _apiClient = ApiClient();
 
-    // Create services with the shared API client
+    // Create auth service
     _authService = AuthService(apiClient: _apiClient);
+
+    // Set up automatic token refresh callback
+    _apiClient.setTokenRefreshCallback(() async {
+      final success = await _authService.refreshToken();
+      if (!success) {
+        print("❌ Auto token refresh failed, logging out user");
+        await _authService.logout();
+        throw Exception('Token refresh failed - user logged out');
+      }
+    });
+
+    // Create other services with the shared API client
     _projectService = ProjectService(apiClient: _apiClient);
     _eventService = EventService(apiClient: _apiClient);
     _taskService = TaskService(apiClient: _apiClient);
@@ -60,7 +72,7 @@ class ServiceRegistry {
     _externalService = ExternalService(apiClient: _apiClient);
 
     _isInitialized = true;
-    print("✅ ServiceRegistry initialized successfully");
+    print("✅ ServiceRegistry initialized with auto token refresh");
   }
 
   /// Get the API client

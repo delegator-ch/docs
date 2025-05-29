@@ -9,94 +9,137 @@ class ApiClient {
   final bool enableLogging;
 
   String? _authToken;
+  Function()? _onTokenRefreshNeeded; // Callback for token refresh
 
   ApiClient({
     http.Client? httpClient,
     String? baseUrl,
     Map<String, String>? defaultHeaders,
     this.enableLogging = true,
-  }) : _httpClient = httpClient ?? http.Client(),
-       baseUrl = baseUrl ?? ApiConfig.baseUrl,
-       _defaultHeaders = defaultHeaders ?? {'Content-Type': 'application/json'};
+  })  : _httpClient = httpClient ?? http.Client(),
+        baseUrl = baseUrl ?? ApiConfig.baseUrl,
+        _defaultHeaders =
+            defaultHeaders ?? {'Content-Type': 'application/json'};
 
   /// Set or update the auth token
   void setAuthToken(String token) {
     _authToken = token;
   }
 
-  /// GET request
-  Future<dynamic> get(String endpoint, {Map<String, String>? headers}) async {
-    final uri = Uri.parse(_buildUrl(endpoint));
-    _log("📡 GET $uri");
-
-    final response = await _httpClient.get(
-      uri,
-      headers: _mergeHeaders(headers),
-    );
-
-    return _handleResponse(response);
+  /// Set callback for when token refresh is needed
+  void setTokenRefreshCallback(Function() callback) {
+    _onTokenRefreshNeeded = callback;
   }
 
-  /// POST request
+  /// GET request with auto retry on 401
+  Future<dynamic> get(String endpoint, {Map<String, String>? headers}) async {
+    return _makeRequestWithRetry(() async {
+      final uri = Uri.parse(_buildUrl(endpoint));
+      _log("📡 GET $uri");
+
+      final response = await _httpClient.get(
+        uri,
+        headers: _mergeHeaders(headers),
+      );
+
+      return _handleResponse(response);
+    });
+  }
+
+  /// POST request with auto retry on 401
   Future<dynamic> post(
     String endpoint,
     Object? body, {
     Map<String, String>? headers,
   }) async {
-    final uri = Uri.parse(_buildUrl(endpoint));
-    _log("📡 POST $uri");
-    _log("📝 Body: ${jsonEncode(body)}");
+    return _makeRequestWithRetry(() async {
+      final uri = Uri.parse(_buildUrl(endpoint));
+      _log("📡 POST $uri");
+      _log("📝 Body: ${jsonEncode(body)}");
 
-    final response = await _httpClient.post(
-      uri,
-      headers: _mergeHeaders(headers),
-      body: jsonEncode(body),
-    );
+      final response = await _httpClient.post(
+        uri,
+        headers: _mergeHeaders(headers),
+        body: jsonEncode(body),
+      );
 
-    return _handleResponse(response);
+      return _handleResponse(response);
+    });
   }
 
-  /// PUT request
+  /// PUT request with auto retry on 401
   Future<dynamic> put(
     String endpoint,
     Object? body, {
     Map<String, String>? headers,
   }) async {
-    final uri = Uri.parse(_buildUrl(endpoint));
-    _log("📡 PUT $uri");
-    _log("📝 Body: ${jsonEncode(body)}");
+    return _makeRequestWithRetry(() async {
+      final uri = Uri.parse(_buildUrl(endpoint));
+      _log("📡 PUT $uri");
+      _log("📝 Body: ${jsonEncode(body)}");
 
-    final response = await _httpClient.put(
-      uri,
-      headers: _mergeHeaders(headers),
-      body: jsonEncode(body),
-    );
+      final response = await _httpClient.put(
+        uri,
+        headers: _mergeHeaders(headers),
+        body: jsonEncode(body),
+      );
 
-    return _handleResponse(response);
+      return _handleResponse(response);
+    });
   }
 
-  /// DELETE request
+  /// DELETE request with auto retry on 401
   Future<dynamic> delete(
     String endpoint, {
     Map<String, String>? headers,
   }) async {
-    final uri = Uri.parse(_buildUrl(endpoint));
-    _log("📡 DELETE $uri");
+    return _makeRequestWithRetry(() async {
+      final uri = Uri.parse(_buildUrl(endpoint));
+      _log("📡 DELETE $uri");
 
-    final response = await _httpClient.delete(
-      uri,
-      headers: _mergeHeaders(headers),
-    );
+      final response = await _httpClient.delete(
+        uri,
+        headers: _mergeHeaders(headers),
+      );
 
-    return _handleResponse(response);
+      return _handleResponse(response);
+    });
+  }
+
+  /// Make request with automatic retry on 401 Unauthorized
+  Future<dynamic> _makeRequestWithRetry(
+      Future<dynamic> Function() request) async {
+    try {
+      return await request();
+    } on ApiException catch (e) {
+      // If we get a 401 and have a refresh callback, try to refresh token
+      if (e.statusCode == 401 && _onTokenRefreshNeeded != null) {
+        _log("🔄 Token expired, attempting refresh...");
+
+        try {
+          // Call the refresh callback (this should be AuthService.refreshToken)
+          await _onTokenRefreshNeeded!();
+          _log("✅ Token refreshed, retrying request...");
+
+          // Retry the original request with new token
+          return await request();
+        } catch (refreshError) {
+          _log("❌ Token refresh failed: $refreshError");
+          // Re-throw the original 401 error since refresh failed
+          rethrow;
+        }
+      }
+
+      // If not a 401 or no refresh callback, re-throw original error
+      rethrow;
+    }
   }
 
   /// Build full URL from endpoint
   String _buildUrl(String endpoint) {
-    final cleanBase =
-        baseUrl.endsWith('/')
-            ? baseUrl.substring(0, baseUrl.length - 1)
-            : baseUrl;
+    final cleanBase = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
     final cleanEndpoint =
         endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
     return '$cleanBase/$cleanEndpoint';
