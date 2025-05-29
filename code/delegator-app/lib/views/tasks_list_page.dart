@@ -426,10 +426,9 @@ class TaskCard extends StatelessWidget {
                               const SizedBox(width: 8),
                               _buildDeadlineChip(task.deadline!),
                             ],
-                            if (task.user != null) ...[
-                              const SizedBox(width: 8),
-                              _buildAssigneeChip(task.user!),
-                            ],
+                            // Always show assignee chip (either assigned user or unassigned)
+                            const SizedBox(width: 8),
+                            _buildAssigneeChip(task.user),
                           ],
                         ),
                       ],
@@ -565,7 +564,41 @@ class TaskCard extends StatelessWidget {
     return Colors.green;
   }
 
-  Widget _buildAssigneeChip(int userId) {
+  Widget _buildAssigneeChip(int? userId) {
+    if (userId == null) {
+      // Show unassigned placeholder
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.grey.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleAvatar(
+              radius: 8,
+              backgroundColor: Colors.grey[400],
+              child: Icon(
+                Icons.person_outline,
+                color: Colors.white,
+                size: 10,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'Unassigned',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final user = projectUsers.firstWhere(
       (u) => u.id == userId,
       orElse: () => User(id: userId, username: 'Unknown User'),
