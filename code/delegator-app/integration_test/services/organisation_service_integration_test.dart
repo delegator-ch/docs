@@ -6,6 +6,7 @@ import 'package:delegator/services/auth_service.dart';
 import 'package:delegator/services/api_client.dart';
 import 'package:delegator/models/organisation.dart';
 import 'package:delegator/models/project.dart';
+import 'package:delegator/models/user.dart';
 import '../helpers/test_setup.dart';
 
 void main() {
@@ -242,6 +243,90 @@ void main() {
       } catch (e) {
         print('❌ Enhance projects test failed: $e');
         fail('Enhance projects test failed: $e');
+      }
+    });
+
+    test(
+        'getUsersByOrganisationId should return list of users from real backend',
+        () async {
+      const organisationId = 5; // Based on your API example
+
+      try {
+        // Act
+        final users =
+            await organisationService.getUsersByOrganisationId(organisationId);
+
+        // Print details for debugging
+        print('✅ Got ${users.length} users for organisation $organisationId');
+        for (var user in users) {
+          print(
+            '👤 User ID: ${user.id}, Username: "${user.username}", Email: "${user.email}"',
+          );
+        }
+
+        // Assert
+        expect(users, isNotNull);
+        expect(users, isA<List<User>>());
+        expect(users.isNotEmpty, isTrue);
+
+        // Verify each user has expected properties
+        for (var user in users) {
+          expect(user.id, isNotNull);
+          expect(user.username, isNotEmpty);
+        }
+
+        print('✅ All user properties validated successfully');
+      } catch (e) {
+        print('❌ getUsersByOrganisationId test failed: $e');
+        fail('getUsersByOrganisationId test failed: $e');
+      }
+    });
+
+    test(
+        'getUsersByOrganisationId should throw ArgumentError for invalid organisation ID',
+        () async {
+      try {
+        print('🔍 Testing invalid organisation ID (0)');
+
+        await expectLater(
+          () => organisationService.getUsersByOrganisationId(0),
+          throwsA(isA<ArgumentError>()),
+        );
+
+        print('✅ Correctly threw ArgumentError for organisation ID = 0');
+
+        print('🔍 Testing invalid organisation ID (-1)');
+
+        await expectLater(
+          () => organisationService.getUsersByOrganisationId(-1),
+          throwsA(isA<ArgumentError>()),
+        );
+
+        print('✅ Correctly threw ArgumentError for negative organisation ID');
+      } catch (e) {
+        print('❌ Invalid organisation ID test failed: $e');
+        fail('Invalid organisation ID test failed: $e');
+      }
+    });
+
+    test('getUsersByOrganisationId should handle non-existent organisation',
+        () async {
+      try {
+        final nonExistentId = 999999;
+
+        print(
+          '🔍 Attempting to fetch users for non-existent organisation with ID: $nonExistentId',
+        );
+
+        await expectLater(
+          () => organisationService.getUsersByOrganisationId(nonExistentId),
+          throwsA(isA<Exception>()),
+        );
+
+        print('✅ Correctly threw exception for non-existent organisation');
+      } catch (e) {
+        print('❌ Non-existent organisation test failed: $e');
+        fail('Non-existent organisation test failed: $e');
       }
     });
   });

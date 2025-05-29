@@ -3,6 +3,7 @@
 import 'dart:async';
 import '../models/organisation.dart';
 import '../models/project.dart';
+import '../models/user.dart';
 import '../models/paginated_response.dart';
 import 'base_service.dart';
 import 'api_client.dart';
@@ -13,7 +14,7 @@ class OrganisationService implements BaseService<Organisation> {
   final ApiClient _apiClient;
 
   OrganisationService({ApiClient? apiClient})
-    : _apiClient = apiClient ?? ApiClient();
+      : _apiClient = apiClient ?? ApiClient();
 
   @override
   Future<List<Organisation>> getAll() async {
@@ -87,5 +88,30 @@ class OrganisationService implements BaseService<Organisation> {
       }
       return project;
     }).toList();
+  }
+
+  /// Get all users from an organisation
+  Future<List<User>> getUsersByOrganisationId(int organisationId) async {
+    if (organisationId <= 0) {
+      throw ArgumentError('Organisation ID must be a positive integer');
+    }
+
+    try {
+      final response =
+          await _apiClient.get('/organisations/$organisationId/users/');
+      final List<dynamic> usersJson = response['users'];
+      return usersJson
+          .map((userJson) => User.fromJson(userJson['user_details']))
+          .toList();
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) {
+        throw Exception('Organisation with ID $organisationId not found');
+      }
+      throw Exception(
+          'Failed to get users for organisation $organisationId: [${e.statusCode}] ${e.message}');
+    } catch (e) {
+      throw Exception(
+          'Failed to get users for organisation $organisationId: $e');
+    }
   }
 }
