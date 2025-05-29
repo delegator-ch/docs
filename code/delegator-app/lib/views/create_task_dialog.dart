@@ -254,15 +254,18 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
                       decoration: const InputDecoration(
                         labelText: 'Select team member',
                         prefixIcon: Icon(Icons.person),
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 16), // Increased vertical padding
                       ),
                       isExpanded: true,
+                      isDense: false, // Add this to prevent compression
                       items: [
                         const DropdownMenuItem<User>(
                           value: null,
                           child: Padding(
-                            padding: EdgeInsets.symmetric(vertical: 4),
+                            padding: EdgeInsets.symmetric(
+                                vertical: 8), // Increased padding for items
                             child: Row(
                               children: [
                                 Icon(Icons.person_off, color: Colors.grey),
@@ -367,7 +370,7 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
       actions: [
         TextButton(
           onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: const Text('Discard'),
         ),
         ElevatedButton(
           onPressed: _isLoading ? null : _createTask,
@@ -380,11 +383,11 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
                   height: 16,
                   width: 16,
                   child: CircularProgressIndicator(
-                    strokeWidth: 2,
+                    strokeWidth: 3,
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 )
-              : const Text('Create Task'),
+              : const Text('Create'),
         ),
       ],
     );
