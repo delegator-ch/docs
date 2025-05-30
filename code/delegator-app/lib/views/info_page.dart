@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import '../services/service_registry.dart';
 import '../models/user.dart';
+import '../models/user_organisation.dart';
 
 class InfoPage extends StatefulWidget {
   const InfoPage({Key? key}) : super(key: key);
@@ -14,16 +15,20 @@ class InfoPage extends StatefulWidget {
 class _InfoPageState extends State<InfoPage> {
   User? _currentUser;
   String? _inviteCode;
+  List<UserOrganisation> _userOrganisations = [];
   bool _isLoading = true;
   bool _isLoadingInvite = false;
+  bool _isLoadingOrgs = false;
   String? _errorMessage;
   String? _inviteError;
+  String? _orgsError;
 
   @override
   void initState() {
     super.initState();
     _loadUserInfo();
     _loadInviteCode();
+    _loadUserOrganisations();
   }
 
   Future<void> _loadUserInfo() async {
@@ -66,6 +71,30 @@ class _InfoPageState extends State<InfoPage> {
     }
   }
 
+  Future<void> _loadUserOrganisations() async {
+    if (_currentUser?.id == null) return;
+
+    setState(() {
+      _isLoadingOrgs = true;
+      _orgsError = null;
+    });
+
+    try {
+      final userOrgs = await ServiceRegistry()
+          .organisationService
+          .getUserOrganisationsByUserId(_currentUser!.id!);
+      setState(() {
+        _userOrganisations = userOrgs;
+        _isLoadingOrgs = false;
+      });
+    } catch (e) {
+      setState(() {
+        _orgsError = e.toString();
+        _isLoadingOrgs = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -77,6 +106,7 @@ class _InfoPageState extends State<InfoPage> {
               onPressed: () {
                 _loadUserInfo();
                 _loadInviteCode();
+                _loadUserOrganisations();
               }),
           IconButton(
             icon: const Icon(Icons.logout),
@@ -123,6 +153,7 @@ class _InfoPageState extends State<InfoPage> {
               onPressed: () {
                 _loadUserInfo();
                 _loadInviteCode();
+                _loadUserOrganisations();
               },
               child: const Text('Retry'),
             ),
@@ -140,11 +171,198 @@ class _InfoPageState extends State<InfoPage> {
           const SizedBox(height: 20),
           _buildInviteCodeCard(),
           const SizedBox(height: 20),
+          _buildOrganisationsCard(),
+          const SizedBox(height: 20),
           _buildAppInfoCard(),
           const SizedBox(height: 20),
           _buildServicesStatusCard(),
           const SizedBox(height: 20),
           _buildSettingsCard(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOrganisationsCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.business, color: Colors.blue),
+                const SizedBox(width: 8),
+                Text(
+                  'My Organizations (${_userOrganisations.length})',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                if (_isLoadingOrgs)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    onPressed: _loadUserOrganisations,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (_orgsError != null)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red[600]),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _orgsError!,
+                        style: TextStyle(color: Colors.red[700]),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (_userOrganisations.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: Column(
+                  children: [
+                    Icon(Icons.business_outlined,
+                        color: Colors.grey[400], size: 32),
+                    const SizedBox(height: 8),
+                    Text(
+                      'No organizations found',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'You are not a member of any organizations',
+                      style: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Column(
+                children: _userOrganisations
+                    .map((userOrg) => _buildOrganisationTile(userOrg))
+                    .toList(),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOrganisationTile(UserOrganisation userOrg) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: CircleAvatar(
+          backgroundColor: Colors.blue[100],
+          child: Icon(Icons.business, color: Colors.blue[700]),
+        ),
+        title: Text(
+          userOrg.organisationDetails?.name ??
+              'Organization #${userOrg.organisation}',
+          style: const TextStyle(fontWeight: FontWeight.w500),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (userOrg.roleDetails != null)
+              Text(
+                '${userOrg.roleDetails!.name} (Level ${userOrg.roleDetails!.level})',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+            if (userOrg.organisationDetails?.since != null)
+              Text(
+                'Since: ${_formatDate(userOrg.organisationDetails!.since!)}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+          ],
+        ),
+        trailing: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.blue[50],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            'ID: ${userOrg.organisation}',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.blue[700],
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        onTap: () => _showOrganisationDetails(userOrg),
+      ),
+    );
+  }
+
+  void _showOrganisationDetails(UserOrganisation userOrg) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title:
+            Text(userOrg.organisationDetails?.name ?? 'Organization Details'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Organization ID: ${userOrg.organisation}'),
+            const SizedBox(height: 8),
+            if (userOrg.roleDetails != null) ...[
+              Text('Your Role: ${userOrg.roleDetails!.name}'),
+              Text('Role Level: ${userOrg.roleDetails!.level}'),
+              const SizedBox(height: 8),
+            ],
+            if (userOrg.organisationDetails?.since != null)
+              Text(
+                  'Organization Since: ${_formatDate(userOrg.organisationDetails!.since!)}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
         ],
       ),
     );
@@ -622,5 +840,9 @@ class _InfoPageState extends State<InfoPage> {
         duration: const Duration(seconds: 3),
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
   }
 }
