@@ -894,3 +894,76 @@ def my_invitations(request):
 def my_profile(request):
     serializer = InviteCodeSerializer(request.user, context={'request': request})
     return Response(serializer.data) 
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def accept_invitation(request, token):
+    """Accept an organization invitation"""
+    try:
+        invitation = OrganisationInvitation.objects.select_related(
+            'organisation', 'role'
+        ).get(token=token)
+    except OrganisationInvitation.DoesNotExist:
+        return Response(
+            {"detail": "Invitation not found."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    user = request.user
+    
+    # Check if invitation is for this user by matching invite_code
+    if invitation.invite_code != user.invite_code:
+        return Response(
+            {"detail": "This invitation is not for you."},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    # Check if invitation can be accepted
+    if not invitation.can_accept():
+        if invitation.accepted:
+            return Response(
+                {"detail": "Invitation already accepted."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        elif invitation.declined:
+            return Response(
+                {"detail": "Invitation was declined."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        elif invitation.is_expired():
+            return Response(
+                {"detail": "Invitation has expired."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    
+    # Check if user is already in organization
+    if UserOrganisation.objects.filter(
+        user=user, 
+        organisation=invitation.organisation
+    ).exists():
+        return Response(
+            {"detail": "You are already a member of this organization."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Accept invitation
+    UserOrganisation.objects.create(
+        user=user,
+        organisation=invitation.organisation,
+        role=invitation.role
+    )
+    
+    invitation.accepted = True
+    invitation.save()
+    
+    return Response({
+        "detail": f"Successfully joined {invitation.organisation.name}",
+        "organisation": {
+            "id": invitation.organisation.id,
+            "name": invitation.organisation.name
+        },
+        "role": {
+            "id": invitation.role.id,
+            "name": invitation.role.name
+        }
+    })
