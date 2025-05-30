@@ -26,9 +26,10 @@ class _InfoPageState extends State<InfoPage> {
   @override
   void initState() {
     super.initState();
-    _loadUserInfo();
-    _loadInviteCode();
-    _loadUserOrganisations();
+    _loadUserInfo().then((_) {
+      _loadInviteCode();
+      _loadUserOrganisations();
+    });
   }
 
   Future<void> _loadUserInfo() async {
@@ -103,8 +104,8 @@ class _InfoPageState extends State<InfoPage> {
         actions: [
           IconButton(
               icon: const Icon(Icons.refresh),
-              onPressed: () {
-                _loadUserInfo();
+              onPressed: () async {
+                await _loadUserInfo();
                 _loadInviteCode();
                 _loadUserOrganisations();
               }),
@@ -150,8 +151,8 @@ class _InfoPageState extends State<InfoPage> {
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () {
-                _loadUserInfo();
+              onPressed: () async {
+                await _loadUserInfo();
                 _loadInviteCode();
                 _loadUserOrganisations();
               },
