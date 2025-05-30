@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../services/service_registry.dart';
 import '../models/user.dart';
 import '../models/user_organisation.dart';
+import '../models/organisation.dart';
+import '../widget/invite_user_dialog.dart';
 
 class InfoPage extends StatefulWidget {
   const InfoPage({Key? key}) : super(key: key);
@@ -30,6 +32,119 @@ class _InfoPageState extends State<InfoPage> {
       _loadInviteCode();
       _loadUserOrganisations();
     });
+  }
+
+  void _showInviteUserDialog(UserOrganisation userOrg) {
+    final codeController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => InviteUserDialog(
+        organisation: userOrg,
+        onInvite: () => _loadUserOrganisations(),
+      ),
+    );
+  }
+
+  Future<void> _inviteUserToOrg(int orgId, String inviteCode) async {
+    try {
+      // You'll need an API endpoint that accepts invite codes
+      // This is a placeholder - implement based on your API
+      await ServiceRegistry().apiClient.post('invite-user/', {
+        'organisation': orgId,
+        'invite_code': inviteCode,
+      });
+
+      _showSnackBar('User invited successfully');
+    } catch (e) {
+      _showSnackBar('Failed to invite user: $e', isError: true);
+    }
+  }
+
+  Widget _buildCreateOrganisationCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.add_business, color: Colors.green),
+                const SizedBox(width: 8),
+                Text(
+                  'Create Organization',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Start a new organization and invite members',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _showCreateOrganisationDialog,
+              icon: const Icon(Icons.add),
+              label: const Text('Create New Organization'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCreateOrganisationDialog() {
+    final nameController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Create Organization'),
+        content: TextField(
+          controller: nameController,
+          decoration: const InputDecoration(
+            labelText: 'Organization Name',
+            hintText: 'Enter organization name',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameController.text.trim().isNotEmpty) {
+                Navigator.of(context).pop();
+                await _createOrganisation(nameController.text.trim());
+              }
+            },
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _createOrganisation(String name) async {
+    try {
+      await ServiceRegistry().organisationService.create(
+            Organisation(id: 0, name: name),
+          );
+      _showSnackBar('Organization "$name" created successfully');
+      _loadUserOrganisations();
+    } catch (e) {
+      _showSnackBar('Failed to create organization: $e', isError: true);
+    }
   }
 
   Future<void> _leaveOrganisation(UserOrganisation userOrg) async {
@@ -216,6 +331,8 @@ class _InfoPageState extends State<InfoPage> {
           _buildServicesStatusCard(),
           const SizedBox(height: 20),
           _buildSettingsCard(),
+          const SizedBox(height: 20),
+          _buildCreateOrganisationCard(),
         ],
       ),
     );
@@ -376,6 +493,11 @@ class _InfoPageState extends State<InfoPage> {
               icon: const Icon(Icons.exit_to_app, color: Colors.red),
               onPressed: () => _leaveOrganisation(userOrg),
               tooltip: 'Leave Organization',
+            ),
+            IconButton(
+              icon: const Icon(Icons.person_add, color: Colors.blue, size: 20),
+              onPressed: () => _showInviteUserDialog(userOrg),
+              tooltip: 'Invite User',
             ),
           ],
         ),
