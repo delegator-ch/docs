@@ -324,6 +324,105 @@ class OrganisationService implements BaseService<Organisation> {
     }
   }
 
+  // Invitation methods
+
+  /// Create an invitation to join an organisation
+  Future<Map<String, dynamic>> createInvitation(
+      int organisationId, String inviteCode, int roleId) async {
+    if (organisationId <= 0) {
+      throw ArgumentError('Organisation ID must be a positive integer');
+    }
+    if (inviteCode.isEmpty) {
+      throw ArgumentError('Invite code cannot be empty');
+    }
+    if (roleId <= 0) {
+      throw ArgumentError('Role ID must be a positive integer');
+    }
+
+    try {
+      final response = await _apiClient.post(
+        'invitations/',
+        {
+          'organisation': organisationId,
+          'invite_code': inviteCode,
+          'role': roleId,
+        },
+      );
+      return response;
+    } on ApiException catch (e) {
+      if (e.statusCode == 409) {
+        throw Exception('Invitation code already exists');
+      }
+      _handleApiException('Failed to create invitation', e);
+    } catch (e) {
+      throw Exception('Failed to create invitation: $e');
+    }
+  }
+
+  /// Accept an invitation using the invite code
+  Future<UserOrganisation> acceptInvitation(String inviteCode) async {
+    if (inviteCode.isEmpty) {
+      throw ArgumentError('Invite code cannot be empty');
+    }
+
+    try {
+      final response = await _apiClient.post(
+        'invitations/accept/',
+        {'invite_code': inviteCode},
+      );
+      return UserOrganisation.fromJson(response);
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) {
+        throw Exception('Invalid or expired invitation code');
+      }
+      if (e.statusCode == 409) {
+        throw Exception('User is already in this organisation');
+      }
+      _handleApiException('Failed to accept invitation', e);
+    } catch (e) {
+      throw Exception('Failed to accept invitation: $e');
+    }
+  }
+
+  /// Get invitation details by code (without accepting)
+  Future<Map<String, dynamic>> getInvitationDetails(String inviteCode) async {
+    if (inviteCode.isEmpty) {
+      throw ArgumentError('Invite code cannot be empty');
+    }
+
+    try {
+      final response = await _apiClient.get('invitations/$inviteCode/');
+      return response;
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) {
+        throw Exception('Invalid or expired invitation code');
+      }
+      _handleApiException('Failed to get invitation details', e);
+    } catch (e) {
+      throw Exception('Failed to get invitation details: $e');
+    }
+  }
+
+  /// Delete/revoke an invitation
+  Future<bool> deleteInvitation(int invitationId) async {
+    if (invitationId <= 0) {
+      throw ArgumentError('Invitation ID must be a positive integer');
+    }
+
+    try {
+      await _apiClient.delete('invitations/$invitationId/');
+      return true;
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) {
+        throw Exception('Invitation with ID $invitationId not found');
+      }
+      _handleApiException(
+          'Failed to delete invitation with ID $invitationId', e);
+    } catch (e) {
+      throw Exception('Failed to delete invitation with ID $invitationId: $e');
+    }
+  }
+
   /// Handle API exceptions with appropriate logging and error propagation
   Never _handleApiException(String message, ApiException e) {
     final errorMessage = '$message: [${e.statusCode}] ${e.message}';
