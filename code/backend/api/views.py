@@ -873,11 +873,11 @@ def my_invitations(request):
     """Get pending invitations for current user"""
     user = request.user
     pending_invitations = OrganisationInvitation.objects.filter(
-        invited_user=user,
+        invite_code=user.invite_code,  # ✅ Use invite_code instead
         accepted=False,
         declined=False
     ).select_related('organisation', 'role', 'invited_by')
-    
+        
     serializer = OrganisationInvitationSerializer(
         pending_invitations, 
         many=True, 

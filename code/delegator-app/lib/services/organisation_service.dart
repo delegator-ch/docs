@@ -4,6 +4,7 @@ import 'dart:async';
 import '../models/organisation.dart';
 import '../models/project.dart';
 import '../models/user.dart';
+import '../models/invitation.dart';
 import '../models/user_organisation.dart';
 import '../models/paginated_response.dart';
 import 'base_service.dart';
@@ -34,6 +35,29 @@ class OrganisationService implements BaseService<Organisation> {
   Future<Organisation> getById(int id) async {
     final response = await _apiClient.get('${ApiConfig.organisations}$id/');
     return Organisation.fromJson(response);
+  }
+
+// Method to add to OrganisationService class:
+
+  /// Get current user's pending invitations
+  Future<List<Invitations>> getMyInvitations() async {
+    try {
+      final response = await _apiClient.get('my-invitations/');
+
+      if (response is Map<String, dynamic> &&
+          response.containsKey('pending_invitations')) {
+        final List<dynamic> invitationsJson = response['pending_invitations'];
+        return invitationsJson
+            .map((invitationJson) => Invitations.fromJson(invitationJson))
+            .toList();
+      } else {
+        throw Exception('Unexpected response format: ${response.runtimeType}');
+      }
+    } on ApiException catch (e) {
+      _handleApiException('Failed to get my invitations', e);
+    } catch (e) {
+      throw Exception('Failed to get my invitations: $e');
+    }
   }
 
   @override
