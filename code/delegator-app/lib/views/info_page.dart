@@ -32,6 +32,43 @@ class _InfoPageState extends State<InfoPage> {
     });
   }
 
+  Future<void> _leaveOrganisation(UserOrganisation userOrg) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Leave Organization'),
+        content: Text(
+          'Are you sure you want to leave "${userOrg.organisationDetails?.name ?? 'Organization #${userOrg.organisation}'}"?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Leave'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await ServiceRegistry().organisationService.removeUserFromOrganisation(
+              _currentUser!.id!,
+              userOrg.organisation,
+            );
+
+        _showSnackBar('Left organization successfully');
+        _loadUserOrganisations(); // Refresh the list
+      } catch (e) {
+        _showSnackBar('Failed to leave organization: $e', isError: true);
+      }
+    }
+  }
+
   Future<void> _loadUserInfo() async {
     setState(() {
       _isLoading = true;
@@ -317,20 +354,30 @@ class _InfoPageState extends State<InfoPage> {
               ),
           ],
         ),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.blue[50],
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            'ID: ${userOrg.organisation}',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.blue[700],
-              fontWeight: FontWeight.bold,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'ID: ${userOrg.organisation}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.blue[700],
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
-          ),
+            IconButton(
+              icon: const Icon(Icons.exit_to_app, color: Colors.red),
+              onPressed: () => _leaveOrganisation(userOrg),
+              tooltip: 'Leave Organization',
+            ),
+          ],
         ),
         onTap: () => _showOrganisationDetails(userOrg),
       ),
