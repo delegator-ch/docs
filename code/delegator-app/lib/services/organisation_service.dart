@@ -40,7 +40,7 @@ class OrganisationService implements BaseService<Organisation> {
 // Method to add to OrganisationService class:
 
   /// Get current user's pending invitations
-  Future<List<Invitations>> getMyInvitations() async {
+  Future<List<Invitation>> getMyInvitations() async {
     try {
       final response = await _apiClient.get('my-invitations/');
 
@@ -48,7 +48,7 @@ class OrganisationService implements BaseService<Organisation> {
           response.containsKey('pending_invitations')) {
         final List<dynamic> invitationsJson = response['pending_invitations'];
         return invitationsJson
-            .map((invitationJson) => Invitations.fromJson(invitationJson))
+            .map((invitationJson) => Invitation.fromJson(invitationJson))
             .toList();
       } else {
         throw Exception('Unexpected response format: ${response.runtimeType}');
