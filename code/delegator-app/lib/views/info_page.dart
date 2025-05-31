@@ -5,6 +5,7 @@ import '../services/service_registry.dart';
 import '../models/user.dart';
 import '../models/user_organisation.dart';
 import '../models/organisation.dart';
+import '../models/invitation.dart';
 import '../widget/invite_user_dialog.dart';
 
 class InfoPage extends StatefulWidget {
@@ -18,12 +19,15 @@ class _InfoPageState extends State<InfoPage> {
   User? _currentUser;
   String? _inviteCode;
   List<UserOrganisation> _userOrganisations = [];
+  List<Invitation> _pendingInvitations = [];
   bool _isLoading = true;
   bool _isLoadingInvite = false;
   bool _isLoadingOrgs = false;
+  bool _isLoadingInvitations = false;
   String? _errorMessage;
   String? _inviteError;
   String? _orgsError;
+  String? _invitationsError;
 
   @override
   void initState() {
@@ -31,12 +35,11 @@ class _InfoPageState extends State<InfoPage> {
     _loadUserInfo().then((_) {
       _loadInviteCode();
       _loadUserOrganisations();
+      _loadPendingInvitations();
     });
   }
 
   void _showInviteUserDialog(UserOrganisation userOrg) {
-    final codeController = TextEditingController();
-
     showDialog(
       context: context,
       builder: (context) => InviteUserDialog(
@@ -46,19 +49,420 @@ class _InfoPageState extends State<InfoPage> {
     );
   }
 
-  Future<void> _inviteUserToOrg(int orgId, String inviteCode) async {
+  Future<void> _loadPendingInvitations() async {
+    setState(() {
+      _isLoadingInvitations = true;
+      _invitationsError = null;
+    });
+
     try {
-      // You'll need an API endpoint that accepts invite codes
-      // This is a placeholder - implement based on your API
-      await ServiceRegistry().apiClient.post('invite-user/', {
-        'organisation': orgId,
-        'invite_code': inviteCode,
+      final invitations =
+          await ServiceRegistry().organisationService.getMyInvitations();
+      // Sort invitations: active first, then by newest
+      invitations.sort((a, b) {
+        if (a.canAccept && !a.isExpired && (!b.canAccept || b.isExpired))
+          return -1;
+        if (b.canAccept && !b.isExpired && (!a.canAccept || a.isExpired))
+          return 1;
+        return b.id.compareTo(a.id); // Newest first by ID
       });
 
-      _showSnackBar('User invited successfully');
+      setState(() {
+        _pendingInvitations = invitations;
+        _isLoadingInvitations = false;
+      });
     } catch (e) {
-      _showSnackBar('Failed to invite user: $e', isError: true);
+      setState(() {
+        _invitationsError = e.toString();
+        _isLoadingInvitations = false;
+      });
     }
+  }
+
+  Future<void> _acceptInvitation(Invitation invitation) async {
+    // Show loading state
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: Colors.white),
+            ),
+            SizedBox(width: 12),
+            Text('Accepting invitation...'),
+          ],
+        ),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    try {
+      await ServiceRegistry()
+          .organisationService
+          .acceptInvitation(invitation.inviteCode);
+
+      // Show success with organization info if available
+      _showSnackBar('🎉 Successfully joined organization!',
+          backgroundColor: Colors.green);
+
+      // Refresh both invitations and user organisations
+      await Future.wait([
+        _loadPendingInvitations(),
+        _loadUserOrganisations(),
+      ]);
+    } catch (e) {
+      _showSnackBar('Failed to accept invitation: $e', isError: true);
+    }
+  }
+
+  Future<void> _declineInvitation(Invitation invitation) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Decline Invitation'),
+        content:
+            const Text('Are you sure you want to decline this invitation?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Decline'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        // Assuming you have a decline endpoint or delete invitation endpoint
+        await ServiceRegistry()
+            .organisationService
+            .deleteInvitation(invitation.id);
+        _showSnackBar('Invitation declined');
+        _loadPendingInvitations();
+      } catch (e) {
+        _showSnackBar('Failed to decline invitation: $e', isError: true);
+      }
+    }
+  }
+
+  Widget _buildPendingInvitationsCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.mail, color: Colors.orange),
+                const SizedBox(width: 8),
+                Text(
+                  'Pending Invitations (${_pendingInvitations.length})',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                if (_isLoadingInvitations)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    onPressed: _loadPendingInvitations,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (_invitationsError != null)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red[600]),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _invitationsError!,
+                        style: TextStyle(color: Colors.red[700]),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (_pendingInvitations.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: Column(
+                  children: [
+                    Icon(Icons.mail_outline, color: Colors.grey[400], size: 32),
+                    const SizedBox(height: 8),
+                    Text(
+                      'No pending invitations',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Organization invitations will appear here',
+                      style: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Column(
+                children: _pendingInvitations
+                    .map((invitation) => _buildInvitationTile(invitation))
+                    .toList(),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInvitationTile(Invitation invitation) {
+    final isActive = invitation.canAccept && !invitation.isExpired;
+    final statusColor = isActive ? Colors.green : Colors.red;
+    final statusText = invitation.isExpired
+        ? 'Expired'
+        : (invitation.canAccept ? 'Active' : 'Inactive');
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      child: Card(
+        elevation: isActive ? 3 : 1,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: isActive
+              ? BorderSide(color: Colors.green.withOpacity(0.3), width: 1)
+              : BorderSide.none,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.orange[100],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.business,
+                        color: Colors.orange[700], size: 24),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Organization Invitation',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 17,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        _buildInfoChip('Org ID: ${invitation.organisation}',
+                            Icons.business),
+                        const SizedBox(height: 4),
+                        _buildInfoChip(
+                            'Role ID: ${invitation.role}', Icons.person),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: statusColor.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isActive ? Icons.check_circle : Icons.cancel,
+                          size: 16,
+                          color: statusColor,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          statusText,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: statusColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.code, size: 18, color: Colors.grey[600]),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Code: ',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        invitation.inviteCode,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontFamily: 'monospace',
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Icon(Icons.person, size: 18, color: Colors.grey[600]),
+                    const SizedBox(width: 8),
+                    Text(
+                      'From: User ${invitation.invitedBy}',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isActive) ...[
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _declineInvitation(invitation),
+                        icon: const Icon(Icons.close, size: 18),
+                        label: const Text('Decline'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                          side: BorderSide(color: Colors.red.withOpacity(0.5)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _acceptInvitation(invitation),
+                        icon: const Icon(Icons.check, size: 18),
+                        label: const Text('Accept & Join'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          elevation: 2,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ] else ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange[200]!),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline,
+                          color: Colors.orange[700], size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          invitation.isExpired
+                              ? 'This invitation has expired and cannot be accepted'
+                              : 'This invitation is not currently active',
+                          style: TextStyle(
+                            color: Colors.orange[700],
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoChip(String text, IconData icon) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: Colors.grey[600]),
+        const SizedBox(width: 6),
+        Text(
+          text,
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildCreateOrganisationCard() {
@@ -260,6 +664,7 @@ class _InfoPageState extends State<InfoPage> {
                 await _loadUserInfo();
                 _loadInviteCode();
                 _loadUserOrganisations();
+                _loadPendingInvitations();
               }),
           IconButton(
             icon: const Icon(Icons.logout),
@@ -307,6 +712,7 @@ class _InfoPageState extends State<InfoPage> {
                 await _loadUserInfo();
                 _loadInviteCode();
                 _loadUserOrganisations();
+                _loadPendingInvitations();
               },
               child: const Text('Retry'),
             ),
@@ -323,6 +729,8 @@ class _InfoPageState extends State<InfoPage> {
           _buildUserCard(),
           const SizedBox(height: 20),
           _buildInviteCodeCard(),
+          const SizedBox(height: 20),
+          _buildPendingInvitationsCard(),
           const SizedBox(height: 20),
           _buildOrganisationsCard(),
           const SizedBox(height: 20),
@@ -1002,12 +1410,15 @@ class _InfoPageState extends State<InfoPage> {
     }
   }
 
-  void _showSnackBar(String message, {bool isError = false}) {
+  void _showSnackBar(String message,
+      {bool isError = false, Color? backgroundColor}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: isError ? Colors.red : null,
+        backgroundColor: backgroundColor ?? (isError ? Colors.red : null),
         duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }
