@@ -728,6 +728,8 @@ class _InfoPageState extends State<InfoPage> {
         children: [
           _buildUserCard(),
           const SizedBox(height: 20),
+          if (_currentUser?.isPremium != true) _buildUpgradeToPremiumCard(),
+          if (_currentUser?.isPremium != true) const SizedBox(height: 20),
           _buildInviteCodeCard(),
           const SizedBox(height: 20),
           _buildPendingInvitationsCard(),
@@ -1421,6 +1423,104 @@ class _InfoPageState extends State<InfoPage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
+  }
+
+  Widget _buildUpgradeToPremiumCard() {
+    return Card(
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          gradient: LinearGradient(
+            colors: [Colors.amber[400]!, Colors.orange[500]!],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.star,
+                    size: 32,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Upgrade to Premium',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Unlock advanced features and unlimited access',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white70,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _upgradeToPremium,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.orange[700],
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 2,
+                ),
+                child: const Text(
+                  'Upgrade Now',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _upgradeToPremium() async {
+    try {
+      final response = await ServiceRegistry().userService.upgradeToPremium();
+
+      _showSnackBar('Successfully upgraded to premium!',
+          backgroundColor: Colors.green);
+
+      // Refresh user info to update premium status
+      await _loadUserInfo();
+    } catch (e) {
+      _showSnackBar('Failed to upgrade to premium: $e', isError: true);
+    }
   }
 
   String _formatDate(DateTime date) {

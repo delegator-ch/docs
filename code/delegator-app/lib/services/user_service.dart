@@ -126,6 +126,18 @@ class UserService implements BaseService<User> {
     }
   }
 
+  /// Upgrade user to premium
+  Future<Map<String, dynamic>> upgradeToPremium() async {
+    try {
+      final response = await _apiClient.post('upgrade-to-premium/', "");
+      return response;
+    } on ApiException catch (e) {
+      _handleApiException('Failed to upgrade to premium', e);
+    } catch (e) {
+      throw Exception('Failed to upgrade to premium: $e');
+    }
+  }
+
   Never _handleApiException(String message, ApiException e) {
     final errorMessage = '$message: [${e.statusCode}] ${e.message}';
     throw Exception(errorMessage);
