@@ -18,6 +18,9 @@ from django.dispatch import receiver
 from .calendar_token import CalendarSubscription
 from django.db.models.signals import post_save
 
+import string
+import random
+
 ROLE_LEVEL_CORE_TEAM = 2    # Long-term members
 ROLE_LEVEL_TEAM = 3   # Short-term members
 ROLE_LEVEL_FAMILY_FRIENDS = 4 # Family and friends

@@ -18,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _rememberMe = true;
   bool _obscurePassword = true;
+  bool _isLoginMode = true; // true = login, false = register
   String? _errorMessage;
 
   @override
@@ -47,7 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
-  Future<void> _login() async {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -58,14 +59,19 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      await ServiceRegistry().authService.login(
-        _usernameController.text.trim(),
-        _passwordController.text,
-        rememberMe: _rememberMe,
-      );
-
-      // Navigate to main app - the AuthWrapper will handle this automatically
-      // by listening to auth state changes
+      if (_isLoginMode) {
+        await ServiceRegistry().authService.login(
+              _usernameController.text.trim(),
+              _passwordController.text,
+              rememberMe: _rememberMe,
+            );
+      } else {
+        await ServiceRegistry().authService.register(
+              _usernameController.text.trim(),
+              _passwordController.text,
+              rememberMe: _rememberMe,
+            );
+      }
     } catch (e) {
       setState(() {
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
@@ -75,6 +81,13 @@ class _LoginScreenState extends State<LoginScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  void _toggleMode() {
+    setState(() {
+      _isLoginMode = !_isLoginMode;
+      _errorMessage = null;
+    });
   }
 
   @override
@@ -95,14 +108,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 Text(
                   'Welcome to Delegator',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: Colors.blue[700],
-                    fontWeight: FontWeight.bold,
-                  ),
+                        color: Colors.blue[700],
+                        fontWeight: FontWeight.bold,
+                      ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Sign in to continue',
+                  _isLoginMode ? 'Sign in to continue' : 'Create your account',
                   style: Theme.of(
                     context,
                   ).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
@@ -127,6 +140,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return 'Please enter your username';
+                    }
+                    if (!_isLoginMode && value.trim().length < 3) {
+                      return 'Username must be at least 3 characters';
                     }
                     return null;
                   },
@@ -160,10 +176,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     fillColor: Colors.grey[50],
                   ),
                   textInputAction: TextInputAction.done,
-                  onFieldSubmitted: (_) => _login(),
+                  onFieldSubmitted: (_) => _submit(),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please enter your password';
+                    }
+                    if (!_isLoginMode && value.length < 6) {
+                      return 'Password must be at least 6 characters';
                     }
                     return null;
                   },
@@ -193,22 +212,23 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const Spacer(),
-                    TextButton(
-                      onPressed: () {
-                        // TODO: Implement forgot password
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Forgot password feature coming soon!',
+                    if (_isLoginMode)
+                      TextButton(
+                        onPressed: () {
+                          // TODO: Implement forgot password
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Forgot password feature coming soon!',
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                      child: Text(
-                        'Forgot Password?',
-                        style: TextStyle(color: Colors.blue[600]),
+                          );
+                        },
+                        child: Text(
+                          'Forgot Password?',
+                          style: TextStyle(color: Colors.blue[600]),
+                        ),
                       ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -238,9 +258,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 16),
                 ],
 
-                // Login Button
+                // Submit Button
                 ElevatedButton(
-                  onPressed: _isLoading ? null : _login,
+                  onPressed: _isLoading ? null : _submit,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue[600],
                     foregroundColor: Colors.white,
@@ -250,27 +270,51 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     elevation: 2,
                   ),
-                  child:
-                      _isLoading
-                          ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
-                              ),
-                            ),
-                          )
-                          : const Text(
-                            'Sign In',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
                             ),
                           ),
+                        )
+                      : Text(
+                          _isLoginMode ? 'Sign In' : 'Create Account',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
+
+                // Toggle Mode Button
+                TextButton(
+                  onPressed: _toggleMode,
+                  child: RichText(
+                    text: TextSpan(
+                      style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                      children: [
+                        TextSpan(
+                          text: _isLoginMode
+                              ? "Don't have an account? "
+                              : "Already have an account? ",
+                        ),
+                        TextSpan(
+                          text: _isLoginMode ? 'Sign Up' : 'Sign In',
+                          style: TextStyle(
+                            color: Colors.blue[600],
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
 
                 // Development/Debug Section
                 if (const bool.fromEnvironment('dart.vm.product') == false) ...[
@@ -289,7 +333,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: () async {
                       _usernameController.text = 'test_user_2';
                       _passwordController.text = 'sml12345';
-                      await _login();
+                      await _submit();
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.orange[600],

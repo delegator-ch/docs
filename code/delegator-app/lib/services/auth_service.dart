@@ -1,4 +1,4 @@
-// lib/services/auth_service.dart (Enhanced version)
+// lib/services/auth_service.dart (Enhanced version with registration)
 
 import 'dart:async';
 import 'dart:convert';
@@ -89,6 +89,59 @@ class AuthService {
       print("❌ Error during auth initialization: $e");
       await _clearSecureStorage();
       return false;
+    }
+  }
+
+  /// Register a new user
+  Future<User> register(String username, String password,
+      {bool rememberMe = true}) async {
+    print("🔄 Attempting registration for user: $username");
+
+    final response = await _apiClient.post(
+      'register/',
+      {'username': username, 'password': password},
+    );
+
+    print("📡 Received registration response: ${response.keys}");
+
+    final accessToken = response['access'];
+    final refreshToken = response['refresh'];
+
+    if (accessToken != null && refreshToken != null) {
+      print("✅ Registration successful, tokens received");
+
+      // Get user data from JWT payload
+      final userData = _parseJwt(accessToken);
+      print("👤 Extracted user data from token: ${userData['username']}");
+
+      final user = User(
+        id: userData['user_id'],
+        username: userData['username'] ?? '',
+        email: userData['email'],
+      );
+
+      // Store tokens securely
+      await _storeTokensSecurely(accessToken, refreshToken, userData);
+
+      // Store preferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_rememberMeKey, rememberMe);
+      await prefs.setString(_lastUsernameKey, username);
+
+      // Set token in API client
+      _apiClient.setAuthToken(accessToken);
+
+      // Cache current user
+      _currentUser = user;
+
+      // Notify listeners that auth state changed
+      _authStateController.add(true);
+
+      print("✅ Registration completed successfully");
+      return user;
+    } else {
+      print("❌ Registration failed - tokens not found in response");
+      throw Exception('Invalid registration response - tokens not found');
     }
   }
 
