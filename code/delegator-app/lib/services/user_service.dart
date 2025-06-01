@@ -104,6 +104,18 @@ class UserService implements BaseService<User> {
     }
   }
 
+  /// Get current user's profile information
+  Future<Map<String, dynamic>> getMyProfile() async {
+    try {
+      final response = await _apiClient.get('my-profile/');
+      return response;
+    } on ApiException catch (e) {
+      _handleApiException('Failed to get my profile', e);
+    } catch (e) {
+      throw Exception('Failed to get my profile: $e');
+    }
+  }
+
   /// Get users for a specific project with their roles and access details
   Future<List<User>> getByProjectId(int projectId) async {
     if (projectId <= 0) {

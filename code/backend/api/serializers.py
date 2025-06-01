@@ -16,7 +16,7 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'password', 'created']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'password', 'created', 'is_premium']
         read_only_fields = ['created']
         extra_kwargs = {'password': {'write_only': True}}
     
@@ -304,8 +304,8 @@ class UserDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'created',
-                 'organisations', 'tasks', 'messages', 'ical_url']
-        read_only_fields = ['created']
+                 'organisations', 'tasks', 'messages', 'ical_url', 'is_premium']
+        read_only_fields = ['created', 'is_premium']
     
     def get_organisations(self, obj):
         user_orgs = UserOrganisation.objects.filter(user=obj)
@@ -345,4 +345,4 @@ class InviteCodeSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['invite_code', 'is_premium']  # Add this line
-        read_only_fields = ['invite_code', 'is_premium']  # Added invite_code to read_only_fields
+        read_only_fields = ['invite_code', 'is_premium']  # Added invite_code to read_only_fiel ds

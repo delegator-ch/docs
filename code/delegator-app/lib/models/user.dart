@@ -50,7 +50,6 @@ class User {
     if (email != null) data['email'] = email;
     if (firstName != null) data['first_name'] = firstName;
     if (lastName != null) data['last_name'] = lastName;
-    data['is_premium'] = isPremium;
     if (accessType != null) data['access_type'] = accessType;
     if (password != null) data['password'] = password;
     return data;
