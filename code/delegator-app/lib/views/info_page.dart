@@ -493,8 +493,7 @@ class _InfoPageState extends State<InfoPage> {
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: _showCreateOrganisationDialog,
-              icon: const Icon(Icons.add),
-              label: const Text('Create New Organization'),
+              label: const Text('+ '),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 foregroundColor: Colors.white,
