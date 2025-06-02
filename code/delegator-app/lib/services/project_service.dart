@@ -3,7 +3,7 @@
 import 'dart:async';
 import '../models/project.dart';
 import 'base_service.dart';
-import 'api_client.dart';
+import '../models/api_client.dart';
 import '../config/api_config.dart';
 
 /// Service for managing Project entities
@@ -28,7 +28,8 @@ class ProjectService implements BaseService<Project> {
       final response = await _apiClient.get(ApiConfig.projects);
 
       // Convert response directly to list of projects
-      final List<dynamic> projectsJson = response['results'] as List<dynamic>;
+      final List<dynamic> projectsJson =
+          response.data['results'] as List<dynamic>;
       return projectsJson.map((json) => Project.fromJson(json)).toList();
     } on ApiException catch (e) {
       _handleApiException('Failed to get all projects', e);
@@ -49,7 +50,7 @@ class ProjectService implements BaseService<Project> {
 
     try {
       final response = await _apiClient.get('${ApiConfig.projects}$id/');
-      return Project.fromJson(response);
+      return Project.fromJson(response.data);
     } on ApiException catch (e) {
       if (e.statusCode == 404) {
         throw Exception('Project with ID $id not found');
@@ -74,7 +75,7 @@ class ProjectService implements BaseService<Project> {
         ApiConfig.projects,
         project.toJson(),
       );
-      return Project.fromJson(response);
+      return Project.fromJson(response.data);
     } on ApiException catch (e) {
       _handleApiException('Failed to create project', e);
     } catch (e) {
@@ -100,7 +101,7 @@ class ProjectService implements BaseService<Project> {
         '${ApiConfig.projects}${project.id}/',
         project.toJson(),
       );
-      return Project.fromJson(response);
+      return Project.fromJson(response.data);
     } on ApiException catch (e) {
       if (e.statusCode == 404) {
         throw Exception('Project with ID ${project.id} not found');
@@ -146,7 +147,8 @@ class ProjectService implements BaseService<Project> {
         '${ApiConfig.projects}?organisation=$organizationId',
       );
 
-      final List<dynamic> projectsJson = response['results'] as List<dynamic>;
+      final List<dynamic> projectsJson =
+          response.data['results'] as List<dynamic>;
       return projectsJson.map((json) => Project.fromJson(json)).toList();
     } on ApiException catch (e) {
       _handleApiException(
@@ -170,7 +172,8 @@ class ProjectService implements BaseService<Project> {
         '${ApiConfig.projects}?deadline_before=$formattedDate',
       );
 
-      final List<dynamic> projectsJson = response['results'] as List<dynamic>;
+      final List<dynamic> projectsJson =
+          response.data['results'] as List<dynamic>;
       return projectsJson.map((json) => Project.fromJson(json)).toList();
     } on ApiException catch (e) {
       _handleApiException(
@@ -195,7 +198,8 @@ class ProjectService implements BaseService<Project> {
         '${ApiConfig.projects}?status=$statusId',
       );
 
-      final List<dynamic> projectsJson = response['results'] as List<dynamic>;
+      final List<dynamic> projectsJson =
+          response.data['results'] as List<dynamic>;
       return projectsJson.map((json) => Project.fromJson(json)).toList();
     } on ApiException catch (e) {
       _handleApiException('Failed to get projects with status $statusId', e);
@@ -224,7 +228,8 @@ class ProjectService implements BaseService<Project> {
         '${ApiConfig.projects}?search=$query',
       );
 
-      final List<dynamic> projectsJson = response['results'] as List<dynamic>;
+      final List<dynamic> projectsJson =
+          response.data['results'] as List<dynamic>;
       return projectsJson.map((json) => Project.fromJson(json)).toList();
     } on ApiException catch (e) {
       _handleApiException('Failed to search projects with query "$query"', e);

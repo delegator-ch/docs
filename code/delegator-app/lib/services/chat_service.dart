@@ -4,7 +4,7 @@ import 'dart:async';
 import '../models/chat.dart';
 import '../models/paginated_response.dart';
 import 'base_service.dart';
-import 'api_client.dart';
+import '../models/api_client.dart';
 
 /// Service for managing Chat entities
 ///
@@ -24,8 +24,8 @@ class ChatService implements BaseService<Chat> {
   @override
   Future<List<Chat>> getAll() async {
     try {
-      final response = await _apiClient.get('chats/');
-
+      final fullResponse = await _apiClient.get('chats/');
+      final response = fullResponse.data;
       // Handle paginated response format
       if (response is Map<String, dynamic> && response.containsKey('results')) {
         final paginatedResponse = PaginatedResponse<Chat>.fromJson(
@@ -59,7 +59,8 @@ class ChatService implements BaseService<Chat> {
     }
 
     try {
-      final response = await _apiClient.get('chats/$id/');
+      final fullResponse = await _apiClient.get('chats/$id/');
+      final response = fullResponse.data;
       return Chat.fromJson(response);
     } on ApiException catch (e) {
       if (e.statusCode == 404) {
@@ -147,10 +148,10 @@ class ChatService implements BaseService<Chat> {
     }
 
     try {
-      final response = await _apiClient.get(
+      final fullResponse = await _apiClient.get(
         'chats/?organisation=$organisationId',
       );
-
+      final response = fullResponse.data;
       // Handle paginated response format
       if (response is Map<String, dynamic> && response.containsKey('results')) {
         final paginatedResponse = PaginatedResponse<Chat>.fromJson(

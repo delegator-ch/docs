@@ -1,7 +1,7 @@
 // lib/services/calendar_service.dart
 
 import '../models/calendar.dart';
-import '../services/api_client.dart';
+import '../models/api_client.dart';
 
 class CalendarService {
   final ApiClient _apiClient;
@@ -10,7 +10,8 @@ class CalendarService {
 
   /// Fetches all calendars from the backend
   Future<List<Calendar>> getAll() async {
-    final response = await _apiClient.get('/calendars/');
+    final fullResponse = await _apiClient.get('/calendars/');
+    final response = fullResponse.data;
 
     // Check response type and extract the list of calendars
     if (response is Map<String, dynamic>) {
@@ -42,9 +43,10 @@ class CalendarService {
 
   /// Fetches calendars for a specific organisation
   Future<List<Calendar>> getByOrganisationId(int organisationId) async {
-    final response = await _apiClient.get(
+    final fullResponse = await _apiClient.get(
       '/calendars/?organisation=$organisationId',
     );
+    final response = fullResponse.data;
 
     // Handle different response formats
     if (response is Map<String, dynamic>) {
@@ -69,8 +71,8 @@ class CalendarService {
 
   /// Fetches calendars for a specific user
   Future<List<Calendar>> getByUserId(int userId) async {
-    final response = await _apiClient.get('/calendars/?user=$userId');
-
+    final fullResponse = await _apiClient.get('/calendars/?user=$userId');
+    final response = fullResponse.data;
     // Handle different response formats
     if (response is Map<String, dynamic>) {
       if (response.containsKey('results')) {
@@ -95,13 +97,13 @@ class CalendarService {
   /// Fetches a single calendar by ID
   Future<Calendar> getById(int id) async {
     final response = await _apiClient.get('/calendars/$id/');
-    return Calendar.fromJson(response);
+    return Calendar.fromJson(response.data);
   }
 
   /// Creates a new calendar
   Future<Calendar> create(Calendar calendar) async {
     final response = await _apiClient.post('/calendars/', calendar.toJson());
-    return Calendar.fromJson(response);
+    return Calendar.fromJson(response.data);
   }
 
   /// Updates an existing calendar
@@ -126,7 +128,7 @@ class CalendarService {
   /// Gets the iCal URL for a calendar
   Future<String> getICalUrl(int id) async {
     final response = await _apiClient.get('/calendars/$id/ical-url/');
-    final Map<String, dynamic> data = response;
+    final Map<String, dynamic> data = response.data;
     return data['url'] ?? '';
   }
 }

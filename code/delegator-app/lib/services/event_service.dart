@@ -3,7 +3,7 @@
 import 'dart:async';
 import '../models/event.dart';
 import '../services/base_service.dart';
-import '../services/api_client.dart';
+import '../models/api_client.dart';
 import '../config/api_config.dart';
 
 /// Service for managing Event entities
@@ -20,8 +20,8 @@ class EventService implements BaseService<Event> {
   @override
   Future<List<Event>> getAll() async {
     try {
-      final response = await _apiClient.get(ApiConfig.events);
-
+      final fullResponse = await _apiClient.get(ApiConfig.events);
+      final response = fullResponse.data;
       // Handle paginated response format
       if (response is Map<String, dynamic> && response.containsKey('results')) {
         final List<dynamic> results = response['results'];
@@ -49,7 +49,8 @@ class EventService implements BaseService<Event> {
     }
 
     try {
-      final response = await _apiClient.get('${ApiConfig.events}$id/');
+      final fullResponse = await _apiClient.get('${ApiConfig.events}$id/');
+      final response = fullResponse.data;
       return Event.fromJson(response);
     } on ApiException catch (e) {
       if (e.statusCode == 404) {
@@ -68,7 +69,7 @@ class EventService implements BaseService<Event> {
 
     try {
       final response = await _apiClient.post(ApiConfig.events, event.toJson());
-      return Event.fromJson(response);
+      return Event.fromJson(response.data);
     } on ApiException catch (e) {
       _handleApiException('Failed to create event', e);
     } catch (e) {
@@ -90,7 +91,7 @@ class EventService implements BaseService<Event> {
         '${ApiConfig.events}${event.id}/',
         event.toJson(),
       );
-      return Event.fromJson(response);
+      return Event.fromJson(response.data);
     } on ApiException catch (e) {
       if (e.statusCode == 404) {
         throw Exception('Event with ID ${event.id} not found');
@@ -128,10 +129,10 @@ class EventService implements BaseService<Event> {
     }
 
     try {
-      final response = await _apiClient.get(
+      final fullResponse = await _apiClient.get(
         '${ApiConfig.events}?calendar=$calendarId',
       );
-
+      final response = fullResponse.data;
       // Handle paginated response format
       if (response is Map<String, dynamic> && response.containsKey('results')) {
         final List<dynamic> results = response['results'];
@@ -158,10 +159,10 @@ class EventService implements BaseService<Event> {
     }
 
     try {
-      final response = await _apiClient.get(
+      final fullResponse = await _apiClient.get(
         '${ApiConfig.events}?project=$projectId',
       );
-
+      final response = fullResponse.data;
       // Handle paginated response format
       if (response is Map<String, dynamic> && response.containsKey('results')) {
         final List<dynamic> results = response['results'];
@@ -184,8 +185,9 @@ class EventService implements BaseService<Event> {
   /// Get all events where is_gig is true
   Future<List<Event>> getGigs() async {
     try {
-      final response = await _apiClient.get('${ApiConfig.events}?is_gig=true');
-
+      final fullResponse =
+          await _apiClient.get('${ApiConfig.events}?is_gig=true');
+      final response = fullResponse.data;
       // Handle paginated response format
       if (response is Map<String, dynamic> && response.containsKey('results')) {
         final List<dynamic> results = response['results'];

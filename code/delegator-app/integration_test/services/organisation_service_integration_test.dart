@@ -3,7 +3,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:delegator/services/organisation_service.dart';
 import 'package:delegator/services/auth_service.dart';
-import 'package:delegator/services/api_client.dart';
+import 'package:delegator/models/api_client.dart';
 import 'package:delegator/models/organisation.dart';
 import 'package:delegator/models/project.dart';
 import 'package:delegator/models/user.dart';

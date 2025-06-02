@@ -5,7 +5,7 @@ import 'package:delegator/services/message_service.dart';
 import 'package:delegator/services/organisation_service.dart';
 import 'package:delegator/services/external_service.dart';
 
-import 'api_client.dart';
+import '../models/api_client.dart';
 import 'auth_service.dart';
 import 'project_service.dart';
 import 'event_service.dart';

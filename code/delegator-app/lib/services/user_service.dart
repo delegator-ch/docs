@@ -4,7 +4,7 @@ import 'dart:async';
 import '../models/user.dart';
 import '../models/paginated_response.dart';
 import 'base_service.dart';
-import 'api_client.dart';
+import '../models/api_client.dart';
 
 /// Service for managing User entities
 class UserService implements BaseService<User> {
@@ -15,8 +15,8 @@ class UserService implements BaseService<User> {
   @override
   Future<List<User>> getAll() async {
     try {
-      final response = await _apiClient.get('users/');
-
+      final fullResponse = await _apiClient.get('users/');
+      final response = fullResponse.data;
       if (response is Map<String, dynamic> && response.containsKey('results')) {
         final paginatedResponse = PaginatedResponse<User>.fromJson(
           response,
@@ -42,10 +42,12 @@ class UserService implements BaseService<User> {
     }
 
     try {
-      final response = await _apiClient.get('users/$id/');
+      final fullResponse = await _apiClient.get('users/$id/');
+      final response = fullResponse.data;
       return User.fromJson(response);
     } on ApiException catch (e) {
       if (e.statusCode == 404) {
+        //todo
         throw Exception('User with ID $id not found');
       }
       _handleApiException('Failed to get user with ID $id', e);
@@ -57,7 +59,8 @@ class UserService implements BaseService<User> {
   @override
   Future<User> create(User user) async {
     try {
-      final response = await _apiClient.post('users/', user.toJson());
+      final fullResponse = await _apiClient.post('users/', user.toJson());
+      final response = fullResponse.data;
       return User.fromJson(response);
     } on ApiException catch (e) {
       _handleApiException('Failed to create user', e);
@@ -73,10 +76,13 @@ class UserService implements BaseService<User> {
     }
 
     try {
-      final response = await _apiClient.put('users/${user.id}/', user.toJson());
+      final fullResponse =
+          await _apiClient.put('users/${user.id}/', user.toJson());
+      final response = fullResponse.data;
       return User.fromJson(response);
     } on ApiException catch (e) {
       if (e.statusCode == 404) {
+        //todo
         throw Exception('User with ID ${user.id} not found');
       }
       _handleApiException('Failed to update user', e);
@@ -108,7 +114,8 @@ class UserService implements BaseService<User> {
   Future<Map<String, dynamic>> getMyProfile() async {
     try {
       final response = await _apiClient.get('my-profile/');
-      return response;
+
+      return response.data;
     } on ApiException catch (e) {
       _handleApiException('Failed to get my profile', e);
     } catch (e) {
@@ -123,8 +130,8 @@ class UserService implements BaseService<User> {
     }
 
     try {
-      final response = await _apiClient.get('projects/$projectId/users/');
-
+      final fullResponse = await _apiClient.get('projects/$projectId/users/');
+      final response = fullResponse.data;
       if (response is Map<String, dynamic> && response.containsKey('users')) {
         final List<dynamic> usersJson = response['users'];
         return usersJson.map((json) => User.fromJson(json)).toList();
@@ -141,7 +148,8 @@ class UserService implements BaseService<User> {
   /// Upgrade user to premium
   Future<Map<String, dynamic>> upgradeToPremium() async {
     try {
-      final response = await _apiClient.post('upgrade-to-premium/', "");
+      final fullResponse = await _apiClient.post('upgrade-to-premium/', "");
+      final response = fullResponse.data;
       return response;
     } on ApiException catch (e) {
       _handleApiException('Failed to upgrade to premium', e);

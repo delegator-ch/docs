@@ -3,7 +3,7 @@
 import 'dart:async';
 import '../models/message.dart';
 import '../models/paginated_response.dart';
-import 'api_client.dart';
+import '../models/api_client.dart';
 
 /// Service for managing Message entities
 ///
@@ -23,8 +23,8 @@ class MessageService {
   /// Returns a list of all messages the user has access to
   Future<List<Message>> getAll() async {
     try {
-      final response = await _apiClient.get('messages/');
-
+      final fullResponse = await _apiClient.get('messages/');
+      final response = fullResponse.data;
       // Handle paginated response format
       if (response is Map<String, dynamic> && response.containsKey('results')) {
         final paginatedResponse = PaginatedResponse<Message>.fromJson(
@@ -57,10 +57,12 @@ class MessageService {
     }
 
     try {
-      final response = await _apiClient.get('messages/$id/');
+      final fullResponse = await _apiClient.get('messages/$id/');
+      final response = fullResponse.data;
       return Message.fromJson(response);
     } on ApiException catch (e) {
       if (e.statusCode == 404) {
+        //todo
         throw Exception('Message with ID $id not found');
       }
       _handleApiException('Failed to get message with ID $id', e);
@@ -78,7 +80,8 @@ class MessageService {
       // Validate the message before sending
       _validateMessage(message);
 
-      final response = await _apiClient.post('messages/', message.toJson());
+      final fullResponse = await _apiClient.post('messages/', message.toJson());
+      final response = fullResponse.data;
       return Message.fromJson(response);
     } on ApiException catch (e) {
       _handleApiException('Failed to create message', e);
@@ -100,10 +103,11 @@ class MessageService {
       // Validate the message before sending
       _validateMessage(message);
 
-      final response = await _apiClient.put(
+      final fullResponse = await _apiClient.put(
         'messages/${message.id}/',
         message.toJson(),
       );
+      final response = fullResponse.data;
       return Message.fromJson(response);
     } on ApiException catch (e) {
       if (e.statusCode == 404) {
@@ -128,6 +132,7 @@ class MessageService {
       return true;
     } on ApiException catch (e) {
       if (e.statusCode == 404) {
+        //todo
         throw Exception('Message with ID $id not found');
       }
       _handleApiException('Failed to delete message with ID $id', e);
@@ -145,8 +150,8 @@ class MessageService {
     }
 
     try {
-      final response = await _apiClient.get('messages/?chat=$chatId');
-
+      final fullResponse = await _apiClient.get('messages/?chat=$chatId');
+      final response = fullResponse.data;
       // Handle paginated response format
       if (response is Map<String, dynamic> && response.containsKey('results')) {
         final paginatedResponse = PaginatedResponse<Message>.fromJson(
@@ -178,8 +183,8 @@ class MessageService {
     }
 
     try {
-      final response = await _apiClient.get('messages/?user=$userId');
-
+      final fullResponse = await _apiClient.get('messages/?user=$userId');
+      final response = fullResponse.data;
       // Handle paginated response format
       if (response is Map<String, dynamic> && response.containsKey('results')) {
         final paginatedResponse = PaginatedResponse<Message>.fromJson(
@@ -211,8 +216,8 @@ class MessageService {
     }
 
     try {
-      final response = await _apiClient.get('messages/?search=$query');
-
+      final fullResponse = await _apiClient.get('messages/?search=$query');
+      final response = fullResponse.data;
       // Handle paginated response
       if (response is Map<String, dynamic> && response.containsKey('results')) {
         final paginatedResponse = PaginatedResponse<Message>.fromJson(

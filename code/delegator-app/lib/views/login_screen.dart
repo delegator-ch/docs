@@ -1,7 +1,10 @@
 // lib/views/login_screen.dart
 
+import '../models/auth_result.dart';
 import 'package:flutter/material.dart';
 import '../services/service_registry.dart';
+import '../models/user.dart';
+import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -48,6 +51,13 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
+  void _toggleMode() {
+    setState(() {
+      _isLoginMode = !_isLoginMode;
+      _errorMessage = null;
+    });
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -58,36 +68,48 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
 
-    try {
-      if (_isLoginMode) {
-        await ServiceRegistry().authService.login(
-              _usernameController.text.trim(),
-              _passwordController.text,
-              rememberMe: _rememberMe,
-            );
-      } else {
-        await ServiceRegistry().authService.register(
-              _usernameController.text.trim(),
-              _passwordController.text,
-              rememberMe: _rememberMe,
-            );
+    AuthResult result;
+
+    result = _isLoginMode ? await _performLogin() : await _performRegister();
+
+    setState(() {
+      _isLoading = false;
+      if (!result.success) {
+        _errorMessage = result.error;
       }
+    });
+  }
+
+  Future<AuthResult> _performLogin() async {
+    try {
+      final result = await ServiceRegistry().authService.login(
+            _usernameController.text.trim(),
+            _passwordController.text,
+            rememberMe: _rememberMe,
+          );
+      return result;
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (e.toString().contains("No active account found")) {
+        return AuthResult.error("Invalid credentials");
+      }
+      return AuthResult.error(e.toString());
     }
   }
 
-  void _toggleMode() {
-    setState(() {
-      _isLoginMode = !_isLoginMode;
-      _errorMessage = null;
-    });
+  Future<AuthResult> _performRegister() async {
+    try {
+      final result = await ServiceRegistry().authService.register(
+            _usernameController.text.trim(),
+            _passwordController.text,
+            rememberMe: _rememberMe,
+          );
+      return result;
+    } catch (e) {
+      if (e.toString().contains("username already exists")) {
+        return AuthResult.error("Username already taken");
+      }
+      return AuthResult.error(e.toString());
+    }
   }
 
   @override

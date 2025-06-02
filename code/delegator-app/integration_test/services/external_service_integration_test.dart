@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:delegator/services/external_service.dart';
 import 'package:delegator/services/user_service.dart';
 import 'package:delegator/services/auth_service.dart';
-import 'package:delegator/services/api_client.dart';
+import 'package:delegator/models/api_client.dart';
 import 'package:delegator/models/user.dart';
 import '../helpers/test_setup.dart';
 

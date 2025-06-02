@@ -621,7 +621,7 @@ class _InfoPageState extends State<InfoPage> {
     try {
       final response = await ServiceRegistry().apiClient.get('my-profile/');
       setState(() {
-        _inviteCode = "#" + response['invite_code'];
+        _inviteCode = "#" + response.data['invite_code'];
         _isLoadingInvite = false;
       });
     } catch (e) {

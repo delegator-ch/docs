@@ -1,11 +1,15 @@
-// lib/services/auth_service.dart (Enhanced version with registration)
+// lib/services/auth_service.dart (Enhanced version with better error handling)
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'package:delegator/models/http_response.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
-import 'api_client.dart';
+import '../models/api_client.dart';
+import '../models/auth_result.dart';
+import '../models/http_response.dart';
 import '../config/api_config.dart';
 
 /// Service for handling authentication with JWT tokens and secure storage
@@ -92,109 +96,208 @@ class AuthService {
     }
   }
 
-  /// Register a new user
-  Future<User> register(String username, String password,
+  Future<AuthResult> register(String username, String password,
       {bool rememberMe = true}) async {
     print("🔄 Attempting registration for user: $username");
 
-    final response = await _apiClient.post(
-      'register/',
-      {'username': username, 'password': password},
-    );
-
-    print("📡 Received registration response: ${response.keys}");
-
-    final accessToken = response['access'];
-    final refreshToken = response['refresh'];
-
-    if (accessToken != null && refreshToken != null) {
-      print("✅ Registration successful, tokens received");
-
-      // Get user data from JWT payload
-      final userData = _parseJwt(accessToken);
-      print("👤 Extracted user data from token: ${userData['username']}");
-
-      final user = User(
-        id: userData['user_id'],
-        username: userData['username'] ?? '',
-        email: userData['email'],
+    try {
+      Response response = await _apiClient.post(
+        'register/',
+        {'username': username, 'password': password},
       );
 
-      // Store tokens securely
-      await _storeTokensSecurely(accessToken, refreshToken, userData);
+      if (response.statusCode == 400) {
+        return AuthResult.error('Username is taken');
+      }
 
-      // Store preferences
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_rememberMeKey, rememberMe);
-      await prefs.setString(_lastUsernameKey, username);
+      print("📡 Received registration response: ${response.data.keys}");
 
-      // Set token in API client
-      _apiClient.setAuthToken(accessToken);
+      final accessToken = response.data['access'];
+      final refreshToken = response.data['refresh'];
 
-      // Cache current user
-      _currentUser = user;
+      if (accessToken != null && refreshToken != null) {
+        print("✅ Registration successful, tokens received");
 
-      // Notify listeners that auth state changed
-      _authStateController.add(true);
+        // Get user data from JWT payload
+        final userData = _parseJwt(accessToken);
+        print("👤 Extracted user data from token: ${userData['username']}");
 
-      print("✅ Registration completed successfully");
-      return user;
-    } else {
-      print("❌ Registration failed - tokens not found in response");
-      throw Exception('Invalid registration response - tokens not found');
+        final user = User(
+          id: userData['user_id'],
+          username: userData['username'] ?? '',
+          email: userData['email'],
+        );
+
+        // Store tokens securely
+        await _storeTokensSecurely(accessToken, refreshToken, userData);
+
+        // Store preferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool(_rememberMeKey, rememberMe);
+        await prefs.setString(_lastUsernameKey, username);
+
+        // Set token in API client
+        _apiClient.setAuthToken(accessToken);
+
+        // Cache current user
+        _currentUser = user;
+
+        // Notify listeners that auth state changed
+        _authStateController.add(true);
+
+        print("✅ Registration completed successfully");
+        return AuthResult.success(user);
+      } else {
+        print("❌ Registration failed - tokens not found in response");
+        return AuthResult.error(
+            'Invalid registration response - tokens not found');
+      }
+    } on ApiException catch (e) {
+      final errorMessage = _parseApiError(e);
+      print("❌ Registration failed: $errorMessage");
+      return AuthResult.error(errorMessage);
+    } catch (e) {
+      print("❌ Registration failed with unexpected error: $e");
+      return AuthResult.error('Registration failed: ${e.toString()}');
     }
   }
 
-  /// Login with username and password
-  Future<User> login(String username, String password,
+  Future<AuthResult> login(String username, String password,
       {bool rememberMe = true}) async {
     print("🔄 Attempting login for user: $username");
 
-    final response = await _apiClient.post(
-      ApiConfig.token,
-      {'username': username, 'password': password},
-    );
-
-    print("📡 Received login response: ${response.keys}");
-
-    final accessToken = response['access'];
-    final refreshToken = response['refresh'];
-
-    if (accessToken != null && refreshToken != null) {
-      print("✅ Tokens received successfully");
-
-      // Get user data from JWT payload
-      final userData = _parseJwt(accessToken);
-      print("👤 Extracted user data from token: ${userData['username']}");
-
-      final user = User(
-        id: userData['user_id'],
-        username: userData['username'] ?? '',
-        email: userData['email'],
+    try {
+      final response = await _apiClient.post(
+        ApiConfig.token,
+        {'username': username, 'password': password},
       );
 
-      // Store tokens securely
-      await _storeTokensSecurely(accessToken, refreshToken, userData);
+      if (response.statusCode == 401) {
+        return AuthResult.error('Prodivded Information does not match');
+      }
 
-      // Store preferences
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_rememberMeKey, rememberMe);
-      await prefs.setString(_lastUsernameKey, username);
+      print("📡 Received login response: ${response.data.keys}");
 
-      // Set token in API client
-      _apiClient.setAuthToken(accessToken);
+      final accessToken = response.data['access'];
+      final refreshToken = response.data['refresh'];
 
-      // Cache current user
-      _currentUser = user;
+      if (accessToken != null && refreshToken != null) {
+        print("✅ Tokens received successfully");
 
-      // Notify listeners that auth state changed
-      _authStateController.add(true);
+        // Get user data from JWT payload
+        final userData = _parseJwt(accessToken);
+        print("👤 Extracted user data from token: ${userData['username']}");
 
-      print("✅ Login completed successfully");
-      return user;
-    } else {
-      print("❌ Login failed - tokens not found in response");
-      throw Exception('Invalid login response - tokens not found');
+        final user = User(
+          id: userData['user_id'],
+          username: userData['username'] ?? '',
+          email: userData['email'],
+        );
+
+        // Store tokens securely
+        await _storeTokensSecurely(accessToken, refreshToken, userData);
+
+        // Store preferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool(_rememberMeKey, rememberMe);
+        await prefs.setString(_lastUsernameKey, username);
+
+        // Set token in API client
+        _apiClient.setAuthToken(accessToken);
+
+        // Cache current user
+        _currentUser = user;
+
+        // Notify listeners that auth state changed
+        _authStateController.add(true);
+
+        print("✅ Login completed successfully");
+        return AuthResult.success(user);
+      } else {
+        print("❌ Login failed - tokens not found in response");
+        return AuthResult.error('Invalid login response - tokens not found');
+      }
+    } on ApiException catch (e) {
+      final errorMessage = _parseApiError(e);
+      print("❌ Login failed: $errorMessage");
+      return AuthResult.error(errorMessage);
+    } catch (e) {
+      print("❌ Login failed with unexpected error: $e");
+      return AuthResult.error('Login failed: ${e.toString()}');
+    }
+  }
+
+  /// Parse API error responses into user-friendly messages
+  String _parseApiError(ApiException e) {
+    try {
+      // Try to parse the error message as JSON
+      final errorData = jsonDecode(e.message);
+
+      if (errorData is Map<String, dynamic>) {
+        // Handle field-specific errors like {"username": ["A user with that username already exists."]}
+        if (errorData.containsKey('username')) {
+          final usernameErrors = errorData['username'];
+          if (usernameErrors is List && usernameErrors.isNotEmpty) {
+            return usernameErrors.first.toString();
+          }
+        }
+
+        if (errorData.containsKey('email')) {
+          final emailErrors = errorData['email'];
+          if (emailErrors is List && emailErrors.isNotEmpty) {
+            return emailErrors.first.toString();
+          }
+        }
+
+        if (errorData.containsKey('password')) {
+          final passwordErrors = errorData['password'];
+          if (passwordErrors is List && passwordErrors.isNotEmpty) {
+            return passwordErrors.first.toString();
+          }
+        }
+
+        // Handle general detail errors like {"detail": "No active account found with the given credentials"}
+        if (errorData.containsKey('detail')) {
+          return errorData['detail'].toString();
+        }
+
+        // Handle non_field_errors
+        if (errorData.containsKey('non_field_errors')) {
+          final nonFieldErrors = errorData['non_field_errors'];
+          if (nonFieldErrors is List && nonFieldErrors.isNotEmpty) {
+            return nonFieldErrors.first.toString();
+          }
+        }
+
+        // If we have a map but can't parse it, return the first error
+        final firstKey = errorData.keys.first;
+        final firstValue = errorData[firstKey];
+        if (firstValue is List && firstValue.isNotEmpty) {
+          return firstValue.first.toString();
+        }
+        return firstValue.toString();
+      }
+
+      // If it's not a map, return the message as is
+      return e.message;
+    } catch (parseError) {
+      // If JSON parsing fails, handle common status codes
+      switch (e.statusCode) {
+        case 400:
+          return 'Invalid credentials or data provided';
+        case 401:
+          return 'Invalid username or password';
+        case 403:
+          return 'Access forbidden';
+        case 404:
+          return 'Authentication service not found';
+        case 429:
+          return 'Too many login attempts. Please try again later';
+        case 500:
+          return 'Server error. Please try again later';
+        default:
+          return 'Authentication failed. Please check your credentials';
+      }
     }
   }
 

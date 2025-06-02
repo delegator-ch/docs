@@ -3,7 +3,7 @@
 import 'dart:async';
 import '../models/user.dart';
 import '../models/paginated_response.dart';
-import 'api_client.dart';
+import '../models/api_client.dart';
 
 /// Service for managing External Users
 class ExternalService {
@@ -19,8 +19,9 @@ class ExternalService {
     }
 
     try {
-      final response = await _apiClient.get('/projects/$projectId/externals/');
-
+      final fullResponse =
+          await _apiClient.get('/projects/$projectId/externals/');
+      final response = fullResponse.data;
       if (response is Map<String, dynamic> &&
           response.containsKey('externals')) {
         final List<dynamic> externalsJson = response['externals'];
@@ -42,8 +43,9 @@ class ExternalService {
 
   Future<int?> getExternalId(int userId, int projectId) async {
     try {
-      final response = await _apiClient.get('/projects/$projectId/externals/');
-
+      final fullResponse =
+          await _apiClient.get('/projects/$projectId/externals/');
+      final response = fullResponse.data;
       // Handle null or missing response data
       if (response == null || !response.containsKey('externals')) {
         return null;
@@ -80,9 +82,9 @@ class ExternalService {
     }
 
     try {
-      final response =
+      final fullResponse =
           await _apiClient.get('/organisations/$organisationId/externals/');
-
+      final response = fullResponse.data;
       if (response is Map<String, dynamic> &&
           response.containsKey('external_users')) {
         final List<dynamic> externalsJson = response['external_users'];
@@ -163,11 +165,12 @@ class ExternalService {
     }
 
     try {
-      await _apiClient.post('/externals/', {
+      final response = await _apiClient.post('/externals/', {
         'user': userId,
         'project': projectId,
         'role': 6,
       });
+
       return true;
     } on ApiException catch (e) {
       if (e.statusCode == 409) {
@@ -208,7 +211,7 @@ class ExternalService {
   Future<User> create(User external) async {
     try {
       final response = await _apiClient.post('/externals/', external.toJson());
-      return User.fromJson(response);
+      return User.fromJson(response.data);
     } on ApiException catch (e) {
       _handleApiException('Failed to create external user', e);
     } catch (e) {
@@ -225,11 +228,12 @@ class ExternalService {
     try {
       final response =
           await _apiClient.put('/externals/${external.id}/', external.toJson());
-      return User.fromJson(response);
-    } on ApiException catch (e) {
-      if (e.statusCode == 404) {
+
+      if (response.statusCode == 404) {
         throw Exception('External user with ID ${external.id} not found');
       }
+      return User.fromJson(response.data);
+    } on ApiException catch (e) {
       _handleApiException('Failed to update external user', e);
     } catch (e) {
       throw Exception('Failed to update external user: $e');
@@ -262,8 +266,8 @@ class ExternalService {
     }
 
     try {
-      final response = await _apiClient.get('/externals/?search=$query');
-
+      final fullResponse = await _apiClient.get('/externals/?search=$query');
+      final response = fullResponse.data;
       if (response is Map<String, dynamic> && response.containsKey('results')) {
         final paginatedResponse = PaginatedResponse<User>.fromJson(
           response,

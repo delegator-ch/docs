@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:delegator/services/auth_service.dart';
-import 'package:delegator/services/api_client.dart';
+import 'package:delegator/models/api_client.dart';
 import '../helpers/test_setup.dart';
 
 // These integration tests connect to your real backend

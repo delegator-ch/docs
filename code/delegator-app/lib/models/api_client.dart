@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:delegator/models/http_response.dart';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 
@@ -32,7 +33,7 @@ class ApiClient {
   }
 
   /// GET request with auto retry on 401
-  Future<dynamic> get(String endpoint, {Map<String, String>? headers}) async {
+  Future<Response> get(String endpoint, {Map<String, String>? headers}) async {
     return _makeRequestWithRetry(() async {
       final uri = Uri.parse(_buildUrl(endpoint));
       _log("📡 GET $uri");
@@ -107,7 +108,7 @@ class ApiClient {
   }
 
   /// Make request with automatic retry on 401 Unauthorized
-  Future<dynamic> _makeRequestWithRetry(
+  Future<Response> _makeRequestWithRetry(
       Future<dynamic> Function() request) async {
     try {
       return await request();
@@ -158,28 +159,38 @@ class ApiClient {
   }
 
   /// Handles API response with statusCode check + JSON decoding
-  dynamic _handleResponse(http.Response response) {
+  Response _handleResponse(http.Response response) {
     _log("📦 Response: ${response.statusCode}");
+    return Response(
+        statusCode: response.statusCode, data: jsonDecode(response.body));
+  }
 
-    final isSuccess = response.statusCode >= 200 && response.statusCode < 300;
-
-    if (response.body.isEmpty) {
-      return isSuccess
-          ? null
-          : throw ApiException(response.statusCode, 'Empty response');
-    }
-
-    try {
-      final parsed = jsonDecode(response.body);
-
-      if (isSuccess) {
-        return parsed;
-      } else {
-        throw ApiException(response.statusCode, parsed.toString());
+  /// Extract user-friendly error message from different response formats
+  String _extractErrorMessage(dynamic parsed) {
+    if (parsed is Map<String, dynamic>) {
+      // Handle Django's "detail" format: {"detail": "No active account..."}
+      if (parsed.containsKey('detail')) {
+        return parsed['detail'];
       }
-    } catch (e) {
-      throw ApiException(response.statusCode, 'Invalid JSON: ${response.body}');
+
+      // Handle field validation errors: {"username": ["A user with that username..."]}
+      final fieldErrors = <String>[];
+      parsed.forEach((key, value) {
+        if (value is List && value.isNotEmpty) {
+          // Take first error message for each field
+          fieldErrors.add('$key: ${value.first}');
+        } else if (value is String) {
+          fieldErrors.add('$key: $value');
+        }
+      });
+
+      if (fieldErrors.isNotEmpty) {
+        return fieldErrors.join(', ');
+      }
     }
+
+    // Fallback to string representation
+    return parsed.toString();
   }
 
   void _log(String message) {

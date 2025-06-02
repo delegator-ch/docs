@@ -4,7 +4,7 @@ import 'dart:async';
 import '../models/task.dart';
 import '../models/paginated_response.dart';
 import 'base_service.dart';
-import 'api_client.dart';
+import '../models/api_client.dart';
 import '../config/api_config.dart';
 
 /// Service for managing Task entities
@@ -25,8 +25,8 @@ class TaskService implements BaseService<Task> {
   @override
   Future<List<Task>> getAll() async {
     try {
-      final response = await _apiClient.get(ApiConfig.tasks);
-
+      final fullResponse = await _apiClient.get(ApiConfig.tasks);
+      final response = fullResponse.data;
       // Handle paginated response format
       if (response is Map<String, dynamic> && response.containsKey('results')) {
         final paginatedResponse = PaginatedResponse<Task>.fromJson(
@@ -60,7 +60,8 @@ class TaskService implements BaseService<Task> {
     }
 
     try {
-      final response = await _apiClient.get('${ApiConfig.tasks}$id/');
+      final fullResponse = await _apiClient.get('${ApiConfig.tasks}$id/');
+      final response = fullResponse.data;
       return Task.fromJson(response);
     } on ApiException catch (e) {
       if (e.statusCode == 404) {
@@ -82,7 +83,10 @@ class TaskService implements BaseService<Task> {
       // Validate the task before sending
       _validateTask(task);
 
-      final response = await _apiClient.post(ApiConfig.tasks, task.toJson());
+      final fullResponse =
+          await _apiClient.post(ApiConfig.tasks, task.toJson());
+
+      final response = fullResponse.data;
       return Task.fromJson(response);
     } on ApiException catch (e) {
       _handleApiException('Failed to create task', e);
@@ -105,13 +109,15 @@ class TaskService implements BaseService<Task> {
       // Validate the task before sending
       _validateTask(task);
 
-      final response = await _apiClient.put(
+      final fullResponse = await _apiClient.put(
         '${ApiConfig.tasks}${task.id}/',
         task.toJson(),
       );
+      final response = fullResponse.data;
       return Task.fromJson(response);
     } on ApiException catch (e) {
       if (e.statusCode == 404) {
+        //todo
         throw Exception('Task with ID ${task.id} not found');
       }
       _handleApiException('Failed to update task', e);
@@ -134,6 +140,7 @@ class TaskService implements BaseService<Task> {
       return true;
     } on ApiException catch (e) {
       if (e.statusCode == 404) {
+        //todo
         throw Exception('Task with ID $id not found');
       }
       _handleApiException('Failed to delete task with ID $id', e);
@@ -151,10 +158,10 @@ class TaskService implements BaseService<Task> {
     }
 
     try {
-      final response = await _apiClient.get(
+      final fullResponse = await _apiClient.get(
         '${ApiConfig.tasks}?project=$projectId',
       );
-
+      final response = fullResponse.data;
       // Handle paginated response format
       if (response is Map<String, dynamic> && response.containsKey('results')) {
         final paginatedResponse = PaginatedResponse<Task>.fromJson(
@@ -186,8 +193,9 @@ class TaskService implements BaseService<Task> {
     }
 
     try {
-      final response = await _apiClient.get('${ApiConfig.tasks}?user=$userId');
-
+      final fullResponse =
+          await _apiClient.get('${ApiConfig.tasks}?user=$userId');
+      final response = fullResponse.data;
       // Handle paginated response
       if (response is Map<String, dynamic> && response.containsKey('results')) {
         final paginatedResponse = PaginatedResponse<Task>.fromJson(
@@ -218,10 +226,10 @@ class TaskService implements BaseService<Task> {
     }
 
     try {
-      final response = await _apiClient.get(
+      final fullResponse = await _apiClient.get(
         '${ApiConfig.tasks}?status=$statusId',
       );
-
+      final response = fullResponse.data;
       // Handle paginated response
       if (response is Map<String, dynamic> && response.containsKey('results')) {
         final paginatedResponse = PaginatedResponse<Task>.fromJson(
@@ -249,10 +257,10 @@ class TaskService implements BaseService<Task> {
   Future<List<Task>> getByDeadlineBefore(DateTime date) async {
     try {
       final formattedDate = date.toIso8601String();
-      final response = await _apiClient.get(
+      final fullResponse = await _apiClient.get(
         '${ApiConfig.tasks}?deadline_before=$formattedDate',
       );
-
+      final response = fullResponse.data;
       // Handle paginated response
       if (response is Map<String, dynamic> && response.containsKey('results')) {
         final paginatedResponse = PaginatedResponse<Task>.fromJson(
@@ -283,10 +291,10 @@ class TaskService implements BaseService<Task> {
     }
 
     try {
-      final response = await _apiClient.get(
+      final fullResponse = await _apiClient.get(
         '${ApiConfig.tasks}?dependent_on_task=$dependentTaskId',
       );
-
+      final response = fullResponse.data;
       // Handle paginated response
       if (response is Map<String, dynamic> && response.containsKey('results')) {
         final paginatedResponse = PaginatedResponse<Task>.fromJson(
@@ -322,10 +330,10 @@ class TaskService implements BaseService<Task> {
     }
 
     try {
-      final response = await _apiClient.get(
+      final fullResponse = await _apiClient.get(
         '${ApiConfig.tasks}?event=$eventId',
       );
-
+      final response = fullResponse.data;
       // Handle paginated response
       if (response is Map<String, dynamic> && response.containsKey('results')) {
         final paginatedResponse = PaginatedResponse<Task>.fromJson(
@@ -356,8 +364,9 @@ class TaskService implements BaseService<Task> {
     }
 
     try {
-      final response = await _apiClient.get('${ApiConfig.tasks}?search=$query');
-
+      final fullResponse =
+          await _apiClient.get('${ApiConfig.tasks}?search=$query');
+      final response = fullResponse.data;
       // Handle paginated response
       if (response is Map<String, dynamic> && response.containsKey('results')) {
         final paginatedResponse = PaginatedResponse<Task>.fromJson(

@@ -8,7 +8,7 @@ import '../models/invitation.dart';
 import '../models/user_organisation.dart';
 import '../models/paginated_response.dart';
 import 'base_service.dart';
-import 'api_client.dart';
+import '../models/api_client.dart';
 import '../config/api_config.dart';
 
 /// Service for managing Organisation entities
@@ -20,8 +20,8 @@ class OrganisationService implements BaseService<Organisation> {
 
   @override
   Future<List<Organisation>> getAll() async {
-    final response = await _apiClient.get(ApiConfig.organisations);
-
+    final fullResponse = await _apiClient.get(ApiConfig.organisations);
+    final response = fullResponse.data;
     // Handle paginated response
     final paginatedResponse = PaginatedResponse<Organisation>.fromJson(
       response,
@@ -34,7 +34,7 @@ class OrganisationService implements BaseService<Organisation> {
   @override
   Future<Organisation> getById(int id) async {
     final response = await _apiClient.get('${ApiConfig.organisations}$id/');
-    return Organisation.fromJson(response);
+    return Organisation.fromJson(response.data);
   }
 
 // Method to add to OrganisationService class:
@@ -42,8 +42,8 @@ class OrganisationService implements BaseService<Organisation> {
   /// Get current user's pending invitations
   Future<List<Invitation>> getMyInvitations() async {
     try {
-      final response = await _apiClient.get('my-invitations/');
-
+      final fullResponse = await _apiClient.get('my-invitations/');
+      final response = fullResponse.data;
       if (response is Map<String, dynamic> &&
           response.containsKey('pending_invitations')) {
         final List<dynamic> invitationsJson = response['pending_invitations'];
@@ -62,19 +62,21 @@ class OrganisationService implements BaseService<Organisation> {
 
   @override
   Future<Organisation> create(Organisation organisation) async {
-    final response = await _apiClient.post(
+    final fullResponse = await _apiClient.post(
       ApiConfig.organisations,
       organisation.toJson(),
     );
+    final response = fullResponse.data;
     return Organisation.fromJson(response);
   }
 
   @override
   Future<Organisation> update(Organisation organisation) async {
-    final response = await _apiClient.put(
+    final fullResponse = await _apiClient.put(
       '${ApiConfig.organisations}${organisation.id}/',
       organisation.toJson(),
     );
+    final response = fullResponse.data;
     return Organisation.fromJson(response);
   }
 
@@ -122,8 +124,9 @@ class OrganisationService implements BaseService<Organisation> {
     }
 
     try {
-      final response =
+      final fullResponse =
           await _apiClient.get('/organisations/$organisationId/users/');
+      final response = fullResponse.data;
       final List<dynamic> usersJson = response['users'];
       return usersJson
           .map((userJson) => User.fromJson(userJson['user_details']))
@@ -145,8 +148,8 @@ class OrganisationService implements BaseService<Organisation> {
   /// Get all user-organisation relationships
   Future<List<UserOrganisation>> getAllUserOrganisations() async {
     try {
-      final response = await _apiClient.get('user-organisations/');
-
+      final fullResponse = await _apiClient.get('user-organisations/');
+      final response = fullResponse.data;
       if (response is Map<String, dynamic> && response.containsKey('results')) {
         final paginatedResponse = PaginatedResponse<UserOrganisation>.fromJson(
           response,
@@ -171,8 +174,9 @@ class OrganisationService implements BaseService<Organisation> {
     }
 
     try {
-      final response = await _apiClient.get('user-organisations/?user=$userId');
-
+      final fullResponse =
+          await _apiClient.get('user-organisations/?user=$userId');
+      final response = fullResponse.data;
       if (response is Map<String, dynamic> && response.containsKey('results')) {
         final paginatedResponse = PaginatedResponse<UserOrganisation>.fromJson(
           response,
@@ -198,9 +202,9 @@ class OrganisationService implements BaseService<Organisation> {
     }
 
     try {
-      final response = await _apiClient
+      final fullResponse = await _apiClient
           .get('user-organisations/?organisation=$organisationId');
-
+      final response = fullResponse.data;
       if (response is Map<String, dynamic> && response.containsKey('results')) {
         final paginatedResponse = PaginatedResponse<UserOrganisation>.fromJson(
           response,
@@ -227,7 +231,8 @@ class OrganisationService implements BaseService<Organisation> {
     }
 
     try {
-      final response = await _apiClient.get('user-organisations/$id/');
+      final fullResponse = await _apiClient.get('user-organisations/$id/');
+      final response = fullResponse.data;
       return UserOrganisation.fromJson(response);
     } on ApiException catch (e) {
       if (e.statusCode == 404) {
@@ -243,10 +248,11 @@ class OrganisationService implements BaseService<Organisation> {
   Future<UserOrganisation> createUserOrganisation(
       UserOrganisation userOrganisation) async {
     try {
-      final response = await _apiClient.post(
+      final fullResponse = await _apiClient.post(
         'user-organisations/',
         userOrganisation.toJson(),
       );
+      final response = fullResponse.data;
       return UserOrganisation.fromJson(response);
     } on ApiException catch (e) {
       if (e.statusCode == 409) {
@@ -270,7 +276,7 @@ class OrganisationService implements BaseService<Organisation> {
         'user-organisations/${userOrganisation.id}/',
         userOrganisation.toJson(),
       );
-      return UserOrganisation.fromJson(response);
+      return UserOrganisation.fromJson(response.data);
     } on ApiException catch (e) {
       if (e.statusCode == 404) {
         throw Exception(
@@ -293,6 +299,7 @@ class OrganisationService implements BaseService<Organisation> {
       return true;
     } on ApiException catch (e) {
       if (e.statusCode == 404) {
+        //todo
         throw Exception('UserOrganisation with ID $id not found');
       }
       _handleApiException('Failed to delete user-organisation with ID $id', e);
@@ -364,7 +371,7 @@ class OrganisationService implements BaseService<Organisation> {
     }
 
     try {
-      final response = await _apiClient.post(
+      final fullResponse = await _apiClient.post(
         'invitations/',
         {
           'organisation': organisationId,
@@ -372,9 +379,11 @@ class OrganisationService implements BaseService<Organisation> {
           'role': roleId,
         },
       );
+      final response = fullResponse.data;
       return response;
     } on ApiException catch (e) {
       if (e.statusCode == 409) {
+        //todo
         throw Exception('Invitation code already exists');
       }
       _handleApiException('Failed to create invitation', e);
@@ -390,13 +399,15 @@ class OrganisationService implements BaseService<Organisation> {
     }
 
     try {
-      final response = await _apiClient.post(
+      final fullResponse = await _apiClient.post(
         'invitations/accept/',
         {'invite_code': inviteCode},
       );
+      final response = fullResponse.data;
       return UserOrganisation.fromJson(response);
     } on ApiException catch (e) {
       if (e.statusCode == 404) {
+        //todo
         throw Exception('Invalid or expired invitation code');
       }
       if (e.statusCode == 409) {
@@ -415,10 +426,12 @@ class OrganisationService implements BaseService<Organisation> {
     }
 
     try {
-      final response = await _apiClient.get('invitations/$inviteCode/');
+      final fullResponse = await _apiClient.get('invitations/$inviteCode/');
+      final response = fullResponse.data;
       return response;
     } on ApiException catch (e) {
       if (e.statusCode == 404) {
+        //todo
         throw Exception('Invalid or expired invitation code');
       }
       _handleApiException('Failed to get invitation details', e);
