@@ -99,67 +99,15 @@ class AuthService {
   Future<AuthResult> register(String username, String password,
       {bool rememberMe = true}) async {
     print("🔄 Attempting registration for user: $username");
+    Response response = await _apiClient.post(
+      'register/',
+      {'username': username, 'password': password},
+    );
 
-    try {
-      Response response = await _apiClient.post(
-        'register/',
-        {'username': username, 'password': password},
-      );
-
-      if (response.statusCode == 400) {
-        return AuthResult.error('Username is taken');
-      }
-
-      print("📡 Received registration response: ${response.data.keys}");
-
-      final accessToken = response.data['access'];
-      final refreshToken = response.data['refresh'];
-
-      if (accessToken != null && refreshToken != null) {
-        print("✅ Registration successful, tokens received");
-
-        // Get user data from JWT payload
-        final userData = _parseJwt(accessToken);
-        print("👤 Extracted user data from token: ${userData['username']}");
-
-        final user = User(
-          id: userData['user_id'],
-          username: userData['username'] ?? '',
-          email: userData['email'],
-        );
-
-        // Store tokens securely
-        await _storeTokensSecurely(accessToken, refreshToken, userData);
-
-        // Store preferences
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool(_rememberMeKey, rememberMe);
-        await prefs.setString(_lastUsernameKey, username);
-
-        // Set token in API client
-        _apiClient.setAuthToken(accessToken);
-
-        // Cache current user
-        _currentUser = user;
-
-        // Notify listeners that auth state changed
-        _authStateController.add(true);
-
-        print("✅ Registration completed successfully");
-        return AuthResult.success(user);
-      } else {
-        print("❌ Registration failed - tokens not found in response");
-        return AuthResult.error(
-            'Invalid registration response - tokens not found');
-      }
-    } on ApiException catch (e) {
-      final errorMessage = _parseApiError(e);
-      print("❌ Registration failed: $errorMessage");
-      return AuthResult.error(errorMessage);
-    } catch (e) {
-      print("❌ Registration failed with unexpected error: $e");
-      return AuthResult.error('Registration failed: ${e.toString()}');
+    if (response.statusCode == 400) {
+      return AuthResult.error('Username is taken');
     }
+    return login(username, password, rememberMe: rememberMe);
   }
 
   Future<AuthResult> login(String username, String password,
