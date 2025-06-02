@@ -7,6 +7,9 @@ import '../models/user_organisation.dart';
 import '../models/organisation.dart';
 import '../models/invitation.dart';
 import '../widget/invite_user_dialog.dart';
+import 'package:provider/provider.dart';
+import '../providers/organization_context_provider.dart';
+import '../widget/organization_selector.dart';
 
 class InfoPage extends StatefulWidget {
   const InfoPage({Key? key}) : super(key: key);
