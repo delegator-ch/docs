@@ -1,11 +1,13 @@
-// lib/main.dart (Updated)
+// lib/main.dart (Updated with OrganizationContextProvider)
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'services/service_registry.dart';
 import 'views/chats_page.dart';
 import 'views/home_page.dart';
 import 'views/info_page.dart';
 import 'views/login_screen.dart';
+import 'providers/organization_context_provider.dart';
 
 void main() async {
   // Ensure Flutter bindings are initialized
@@ -121,7 +123,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
     }
 
     if (_isLoggedIn) {
-      return const MainNavigationScreen();
+      // Wrap with OrganizationContextProvider when logged in
+      return ChangeNotifierProvider(
+        create: (context) => OrganizationContextProvider()..initialize(),
+        child: const MainNavigationScreen(),
+      );
     } else {
       return const LoginScreen();
     }

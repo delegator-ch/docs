@@ -1,10 +1,13 @@
 // lib/views/projects_page.dart
 
+import 'package:delegator/widget/organization_selector.dart';
 import 'package:flutter/material.dart';
 import '../services/service_registry.dart';
 import '../models/project.dart';
 import 'project_detail_page.dart';
 import 'create_project_dialog.dart';
+import 'package:provider/provider.dart';
+import '../providers/organization_context_provider.dart';
 
 class ProjectsPage extends StatefulWidget {
   final int? highlightProjectId;
@@ -108,6 +111,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
         backgroundColor: _getStatusColor(_selectedStatus),
         foregroundColor: Colors.white,
         actions: [
+          //CompactOrganizationSelector(), // Add this
           IconButton(icon: const Icon(Icons.refresh), onPressed: _loadProjects),
           PopupMenuButton<String>(
             onSelected: (value) {

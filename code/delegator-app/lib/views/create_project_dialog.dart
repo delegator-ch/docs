@@ -1,6 +1,8 @@
 // lib/widgets/create_project_dialog.dart
 
+import 'package:delegator/providers/organization_context_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../services/service_registry.dart';
 import '../models/project.dart';
 import '../models/organisation.dart';
@@ -24,10 +26,28 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
   bool _isLoadingOrganisations = true;
   String? _errorMessage;
 
+// In _CreateProjectDialogState.initState()
   @override
   void initState() {
     super.initState();
     _loadOrganisations();
+
+    // Set current organization as default if available
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final orgProvider =
+          Provider.of<OrganizationContextProvider>(context, listen: false);
+      if (orgProvider.currentOrganization != null &&
+          _organisations.isNotEmpty) {
+        final currentOrgId = orgProvider.currentOrganization!.organisation;
+        final matchingOrg = _organisations.firstWhere(
+          (org) => org.id == currentOrgId,
+          orElse: () => _organisations.first,
+        );
+        setState(() {
+          _selectedOrganisation = matchingOrg;
+        });
+      }
+    });
   }
 
   @override
