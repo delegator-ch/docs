@@ -17,7 +17,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import (
     Organisation, Role, UserOrganisation, Calendar, Event, Project, Chat,
     ChatUser, Message, Song, Timetable, Setlist, History, Status,
-    Task, Recording, External, ChatAccessView, OrganisationInvitation
+    Task, Recording, External, ChatAccessView, OrganisationInvitation, BugReport
 )
 
 from .serializers import (
@@ -26,7 +26,7 @@ from .serializers import (
     ProjectSerializer, ProjectDetailSerializer, ChatSerializer, ChatUserSerializer,
     MessageSerializer, SongSerializer, TimetableSerializer, SetlistSerializer,
     HistorySerializer, StatusSerializer, TaskSerializer, RecordingSerializer,
-    ExternalSerializer, ChatAccessSerializer, OrganisationInvitationSerializer, InviteCodeSerializer
+    ExternalSerializer, ChatAccessSerializer, OrganisationInvitationSerializer, InviteCodeSerializer, BugReportSerializer
 )
 
 from .permissions import CanAccessCalendar, CanAccessChat, HasSongPermission, IsMessageOwnerOrReadOnly, IsProjectMember, IsPartOfOrganisationAndStaff, HasProjectAccess
@@ -895,3 +895,15 @@ def decline_invitation(request, token):
     return Response({
         "detail": f"Declined invitation to {invitation.organisation.name}"
     })
+    
+class BugReportViewSet(viewsets.ModelViewSet):
+    queryset = BugReport.objects.all()
+    serializer_class = BugReportSerializer
+    permission_classes = [AllowAny]  # Allow anonymous submissions
+    http_method_names = ['post']  # Only allow POST
+    
+    def perform_create(self, serializer):
+        if self.request.user.is_authenticated:
+            serializer.save(user=self.request.user)
+        else:
+            serializer.save()

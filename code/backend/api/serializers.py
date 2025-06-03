@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import (
     Organisation, Role, UserOrganisation, Calendar, Event, Project, Chat,
-    ChatUser, Message, Song, Timetable, Setlist, History, Status, Task, Recording, External, ChatAccessView, OrganisationInvitation
+    ChatUser, Message, Song, Timetable, Setlist, History, Status, Task, Recording, External, ChatAccessView, OrganisationInvitation, BugReport
 )
 
 # Add this serializer to your serializers.py file
@@ -346,3 +346,23 @@ class InviteCodeSerializer(serializers.ModelSerializer):
         model = User
         fields = ['invite_code', 'is_premium']  # Add this line
         read_only_fields = ['invite_code', 'is_premium']  # Added invite_code to read_only_fiel ds
+class BugReportSerializer(serializers.ModelSerializer):
+    user_details = UserSerializer(source='user', read_only=True)
+    
+    class Meta:
+        model = BugReport
+        fields = ['id', 'user', 'email', 'title', 'description', 'created', 'user_details']
+        read_only_fields = ['user', 'created']
+    
+    def validate(self, data):
+        request = self.context.get('request')
+        
+        # If user is authenticated, don't require email
+        if request and request.user.is_authenticated:
+            data.pop('email', None)  # Remove email if provided
+        else:
+            # For anonymous users, email is required
+            if not data.get('email'):
+                raise serializers.ValidationError("Email is required for anonymous reports.")
+        
+        return data

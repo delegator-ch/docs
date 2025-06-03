@@ -17,12 +17,16 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _bugEmailController = TextEditingController();
+  final _bugTitleController = TextEditingController();
+  final _bugDescriptionController = TextEditingController();
 
   bool _isLoading = false;
   bool _rememberMe = true;
   bool _obscurePassword = true;
   bool _isLoginMode = true; // true = login, false = register
   String? _errorMessage;
+  bool _isSubmittingBugReport = false;
 
   @override
   void initState() {
@@ -34,6 +38,9 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _usernameController.dispose();
     _passwordController.dispose();
+    _bugEmailController.dispose();
+    _bugTitleController.dispose();
+    _bugDescriptionController.dispose();
     super.dispose();
   }
 
@@ -110,6 +117,153 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       return AuthResult.error(e.toString());
     }
+  }
+
+  Future<void> _submitBugReport() async {
+    if (_bugEmailController.text.trim().isEmpty ||
+        _bugTitleController.text.trim().isEmpty ||
+        _bugDescriptionController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill in all bug report fields'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSubmittingBugReport = true;
+    });
+
+    try {
+      final response = await ServiceRegistry().apiClient.post(
+        'bug-reports/',
+        {
+          'email': _bugEmailController.text.trim(),
+          'title': _bugTitleController.text.trim(),
+          'description': _bugDescriptionController.text.trim(),
+        },
+      );
+
+      setState(() {
+        _isSubmittingBugReport = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Bug report submitted successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Clear the form
+      _bugEmailController.clear();
+      _bugTitleController.clear();
+      _bugDescriptionController.clear();
+    } catch (e) {
+      setState(() {
+        _isSubmittingBugReport = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to submit bug report: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Widget _buildBugReportSection() {
+    return TextButton.icon(
+      onPressed: _showBugReportDialog,
+      icon: Icon(Icons.bug_report, color: Colors.orange[600]),
+      label: Text(
+        'Report a Bug',
+        style: TextStyle(color: Colors.orange[600]),
+      ),
+    );
+  }
+
+  void _showBugReportDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.bug_report, color: Colors.orange[600]),
+            const SizedBox(width: 8),
+            const Text('Report a Bug'),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _bugEmailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  hintText: 'your@email.com',
+                  prefixIcon: Icon(Icons.email),
+                ),
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _bugTitleController,
+                decoration: const InputDecoration(
+                  labelText: 'Issue Title',
+                  hintText: 'Brief description',
+                  prefixIcon: Icon(Icons.title),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _bugDescriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  hintText: 'Detailed description',
+                  prefixIcon: Icon(Icons.description),
+                  alignLabelWithHint: true,
+                ),
+                maxLines: 3,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: _isSubmittingBugReport
+                ? null
+                : () async {
+                    await _submitBugReport();
+                    Navigator.of(context).pop();
+                  },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange[600],
+              foregroundColor: Colors.white,
+            ),
+            child: _isSubmittingBugReport
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Text('Submit'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -376,6 +530,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: TextStyle(color: Colors.red[600]),
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  _buildBugReportSection(),
                 ],
               ],
             ),

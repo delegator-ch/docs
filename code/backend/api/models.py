@@ -484,3 +484,16 @@ class OrganisationInvitation(models.Model):
     
     def __str__(self):
         return f"Invitation to {self.organisation.name} for {self.email}"
+
+class BugReport(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
+    email = models.EmailField(blank=True)  # For anonymous users
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    created = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Bug #{self.id}: {self.title}"
+    
+    class Meta:
+        ordering = ['-created']

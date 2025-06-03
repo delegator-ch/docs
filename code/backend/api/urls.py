@@ -10,7 +10,7 @@ from .views import (
     ChatAccessViewSet, upgrade_to_premium, get_users_by_project, get_externals_by_project, get_externals_by_organisation, 
     remove_user_from_organisation, get_all_users_by_organisation,
     OrganisationInvitationViewSet, get_invitation_details,
-    accept_invitation, decline_invitation, my_invitations, my_profile
+    accept_invitation, decline_invitation, my_invitations, my_profile, BugReportViewSet
 )
 # Update api/urls.py to include JWT views
 from rest_framework_simplejwt.views import (
@@ -47,6 +47,7 @@ router.register(r'recordings', RecordingViewSet)
 router.register(r'externals', ExternalViewSet)
 router.register(r'chat-access', ChatAccessViewSet)
 router.register(r'invitations', OrganisationInvitationViewSet)
+router.register(r'bug-reports', BugReportViewSet)
 
 # This line is crucial - make sure it exists at the bottom of the file
 urlpatterns = router.urls
@@ -97,6 +98,7 @@ urlpatterns += [
     path('my-invitations/', my_invitations, name='my-invitations'),
     path('my-profile/', my_profile, name='my-profile'),
 ]
+
 
 
 
