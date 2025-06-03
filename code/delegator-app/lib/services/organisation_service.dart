@@ -34,6 +34,10 @@ class OrganisationService implements BaseService<Organisation> {
   @override
   Future<Organisation> getById(int id) async {
     final response = await _apiClient.get('${ApiConfig.organisations}$id/');
+    if (response.statusCode == 404) {
+      throw Exception("404");
+    }
+
     return Organisation.fromJson(response.data);
   }
 

@@ -39,8 +39,7 @@ class CreateOrganizationWidget extends StatelessWidget {
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: () => _showCreateOrganizationDialog(context),
-              icon: const Icon(Icons.add),
-              label: const Text('Create Organization'),
+              label: const Text('+'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 foregroundColor: Colors.white,
