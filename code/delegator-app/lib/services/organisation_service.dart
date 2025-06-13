@@ -397,18 +397,16 @@ class OrganisationService implements BaseService<Organisation> {
   }
 
   /// Accept an invitation using the invite code
-  Future<UserOrganisation> acceptInvitation(String inviteCode) async {
+  Future<bool> acceptInvitation(String inviteCode) async {
     if (inviteCode.isEmpty) {
       throw ArgumentError('Invite code cannot be empty');
     }
 
     try {
-      final fullResponse = await _apiClient.post(
-        'invitations/accept/',
-        {'invite_code': inviteCode},
-      );
+      final fullResponse =
+          await _apiClient.post('invitations/$inviteCode/accept/', "");
       final response = fullResponse.data;
-      return UserOrganisation.fromJson(response);
+      return true;
     } on ApiException catch (e) {
       if (e.statusCode == 404) {
         //todo

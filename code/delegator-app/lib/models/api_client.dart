@@ -161,6 +161,9 @@ class ApiClient {
   /// Handles API response with statusCode check + JSON decoding
   Response _handleResponse(http.Response response) {
     _log("📦 Response: ${response.statusCode}");
+    if (response.statusCode == 204) {
+      return Response(statusCode: response.statusCode);
+    }
     return Response(
         statusCode: response.statusCode, data: jsonDecode(response.body));
   }

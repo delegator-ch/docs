@@ -307,7 +307,7 @@ class _InfoPageState extends State<InfoPage> {
     try {
       await ServiceRegistry()
           .organisationService
-          .acceptInvitation(invitation.inviteCode);
+          .acceptInvitation(invitation.invitationUrl);
 
       _showSnackBar('🎉 Successfully joined organization!',
           backgroundColor: Colors.green);

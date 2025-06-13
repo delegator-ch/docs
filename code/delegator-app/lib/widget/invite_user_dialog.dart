@@ -156,11 +156,10 @@ class _InviteUserDialogState extends State<InviteUserDialog> {
     if (_codeController.text.trim().isEmpty) return;
 
     try {
-      await ServiceRegistry().apiClient.post('invite-user/', {
-        'organisation': widget.organisation.organisation,
-        'invite_code': _codeController.text.trim(),
-        'role': _selectedRole,
-      });
+      await ServiceRegistry().organisationService.createInvitation(
+          widget.organisation.organisation,
+          _codeController.text.trim(),
+          _selectedRole);
 
       Navigator.of(context).pop();
       widget.onInvite();

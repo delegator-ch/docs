@@ -330,10 +330,7 @@ class OrganisationInvitationSerializer(serializers.ModelSerializer):
         read_only_fields = ['invited_by']
 
     def get_invitation_url(self, obj):
-        request = self.context.get('request')
-        if request:
-            return request.build_absolute_uri(f'/invitations/{obj.token}/')
-        return f'/invitations/{obj.token}/'
+        return obj.token
     
     def get_can_accept(self, obj):
         return obj.can_accept()
@@ -346,6 +343,7 @@ class InviteCodeSerializer(serializers.ModelSerializer):
         model = User
         fields = ['invite_code', 'is_premium']  # Add this line
         read_only_fields = ['invite_code', 'is_premium']  # Added invite_code to read_only_fiel ds
+
 class BugReportSerializer(serializers.ModelSerializer):
     user_details = UserSerializer(source='user', read_only=True)
     
